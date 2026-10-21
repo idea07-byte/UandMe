@@ -1,0 +1,11 @@
+export { ChatPage } from './ChatPage';
+export { ContactsPage } from './ContactsPage';
+export { LoginPage } from './LoginPage';
+export { RegisterPage } from './RegisterPage';
+export { ForgotPasswordPage } from './ForgotPasswordPage';
+export { ResetPasswordPage } from './ResetPasswordPage';
+export { EmailVerificationPage } from './EmailVerificationPage';
+export { ProfilePage } from './ProfilePage';
+export { DesignSystemPage } from './DesignSystemPage';
+export { NotFoundPage } from './NotFoundPage';
+export * from './settings';
