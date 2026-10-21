@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
+import authRoutes from './routes/authRoutes.js';
 
 const app = express();
 
@@ -44,6 +45,9 @@ app.get('/', (req, res) => {
     },
   });
 });
+
+// Authentication API Routes
+app.use('/api/auth', authRoutes);
 
 // Health check endpoint: Monitored by Docker, uptime services, and frontend checks
 app.get('/api/health', (req, res) => {
