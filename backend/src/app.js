@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
 import authRoutes from './routes/authRoutes.js';
+import userRoutes from './routes/userRoutes.js';
 
 const app = express();
 
@@ -42,12 +43,27 @@ app.get('/', (req, res) => {
     status: 'online',
     endpoints: {
       health: '/api/health',
+      auth: {
+        register: 'POST /api/auth/register',
+        login: 'POST /api/auth/login',
+        me: 'GET /api/auth/me',
+        logout: 'POST /api/auth/logout',
+      },
+      users: {
+        list: 'GET /api/users',
+        search: 'GET /api/users/search?q={query}',
+        getById: 'GET /api/users/:id',
+        updateMe: 'PATCH /api/users/me',
+      },
     },
   });
 });
 
 // Authentication API Routes
 app.use('/api/auth', authRoutes);
+
+// User Management API Routes
+app.use('/api/users', userRoutes);
 
 // Health check endpoint: Monitored by Docker, uptime services, and frontend checks
 app.get('/api/health', (req, res) => {

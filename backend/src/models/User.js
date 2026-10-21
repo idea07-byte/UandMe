@@ -41,6 +41,7 @@ const userSchema = new mongoose.Schema(
       trim: true,
       maxlength: [120, 'About quote cannot exceed 120 characters'],
       default: 'Available on PulseChat',
+      alias: 'bio',
     },
     role: {
       type: String,
@@ -86,6 +87,9 @@ const userSchema = new mongoose.Schema(
 
 // Compound text index to support rapid live directory search by name, email, or department
 userSchema.index({ name: 'text', email: 'text', department: 'text' });
+
+// Single field index for fast alphabetical sorting and directory pagination
+userSchema.index({ name: 1 });
 
 /**
  * Pre-Save Middleware: Automatically hash plain-text password using bcrypt
