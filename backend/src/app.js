@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import mongoose from 'mongoose';
 
 const app = express();
 
@@ -46,9 +47,18 @@ app.get('/', (req, res) => {
 
 // Health check endpoint: Monitored by Docker, uptime services, and frontend checks
 app.get('/api/health', (req, res) => {
-  res.status(200).json({
-    status: 'ok',
-    message: 'PulseChat API server is healthy and running',
+  const isDbConnected = mongoose.connection.readyState === 1;
+
+  res.status(isDbConnected ? 200 : 503).json({
+    status: isDbConnected ? 'ok' : 'degraded',
+    message: isDbConnected
+      ? 'PulseChat API server is healthy and connected to MongoDB'
+      : 'PulseChat API server is degraded: database is not connected',
+    database: {
+      status: isDbConnected ? 'connected' : 'disconnected',
+      name: mongoose.connection.name || null,
+      host: mongoose.connection.host || null,
+    },
     timestamp: new Date().toISOString(),
     uptime: `${Math.floor(process.uptime())}s`,
     environment: process.env.NODE_ENV || 'development',

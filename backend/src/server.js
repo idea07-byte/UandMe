@@ -1,29 +1,41 @@
 import dotenv from 'dotenv';
 
-// Load environment variables from .env file before anything else
+// 1. Load environment variables before importing dependent modules
 dotenv.config();
 
-// Import the configured Express app
+// 2. Import database connection helper and configured Express application
+import { connectDB, disconnectDB } from './config/database.js';
 import app from './app.js';
 
-// Read port from environment variables, defaulting to 5000
 const PORT = process.env.PORT || 5000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
-// Start listening for incoming HTTP requests
-const server = app.listen(PORT, () => {
-  console.log('====================================================');
-  console.log(`🚀 PulseChat Backend API running successfully!`);
-  console.log(`📡 URL:         http://localhost:${PORT}`);
-  console.log(`🩺 Health API:  http://localhost:${PORT}/api/health`);
-  console.log(`🌿 Environment: ${NODE_ENV}`);
-  console.log('====================================================');
-});
+let server;
 
-// Handle unhandled Promise rejections (e.g. failed async operations)
+/**
+ * Bootstrap function to initialize database connection before listening for HTTP traffic.
+ */
+const startServer = async () => {
+  // Connect to MongoDB first; connectDB exits the process if the connection fails
+  await connectDB();
+
+  // Start HTTP server once database connection is established
+  server = app.listen(PORT, () => {
+    console.log('====================================================');
+    console.log(`🚀 PulseChat Backend API running successfully!`);
+    console.log(`📡 URL:         http://localhost:${PORT}`);
+    console.log(`🩺 Health API:  http://localhost:${PORT}/api/health`);
+    console.log(`🌿 Environment: ${NODE_ENV}`);
+    console.log('====================================================');
+  });
+};
+
+// Start the server
+startServer();
+
+// Handle unhandled Promise rejections
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-  // In production, consider graceful shutdown if critical
 });
 
 // Handle uncaught exceptions
@@ -33,12 +45,18 @@ process.on('uncaughtException', (error) => {
 });
 
 // Graceful shutdown on process termination signals (e.g. Ctrl+C or Docker stop)
-const handleGracefulShutdown = (signal) => {
-  console.log(`\n${signal} signal received: Closing HTTP server gracefully...`);
-  server.close(() => {
-    console.log('HTTP server closed. Exiting process.');
+const handleGracefulShutdown = async (signal) => {
+  console.log(`\n${signal} signal received: Closing server gracefully...`);
+  if (server) {
+    server.close(async () => {
+      console.log('HTTP server closed.');
+      await disconnectDB();
+      process.exit(0);
+    });
+  } else {
+    await disconnectDB();
     process.exit(0);
-  });
+  }
 };
 
 process.on('SIGTERM', () => handleGracefulShutdown('SIGTERM'));
