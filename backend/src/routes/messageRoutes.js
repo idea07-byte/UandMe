@@ -3,8 +3,9 @@ import { protect } from '../middleware/authMiddleware.js';
 import {
   getMessages,
   sendMessage,
-  markMessagesAsRead,
+  editMessage,
   deleteMessage,
+  markMessagesAsRead,
 } from '../controllers/messageController.js';
 
 const router = express.Router();
@@ -16,19 +17,22 @@ router.use(protect);
 // Message Endpoints (/api/messages)
 // -------------------------------------------------------------
 
-// GET /api/messages/:chatId - Retrieve message history for a conversation
-router.get('/:chatId', getMessages);
-
 // POST /api/messages - Send a new message
 router.post('/', sendMessage);
 
-// PATCH /api/messages/:chatId/read - Mark messages as read
-router.patch('/:chatId/read', markMessagesAsRead);
-
-// POST /api/messages/read - Alternative endpoint to mark messages as read
+// POST /api/messages/read - Mark messages as read
 router.post('/read', markMessagesAsRead);
 
-// DELETE /api/messages/:id - Delete a message (sender only)
-router.delete('/:id', deleteMessage);
+// PATCH /api/messages/:chatId/read - Mark conversation messages as read
+router.patch('/:chatId/read', markMessagesAsRead);
+
+// PATCH /api/messages/:messageId - Edit a message (author only)
+router.patch('/:messageId', editMessage);
+
+// DELETE /api/messages/:messageId - Delete a message (author or group admin)
+router.delete('/:messageId', deleteMessage);
+
+// GET /api/messages/:chatId - Retrieve message history for a conversation
+router.get('/:chatId', getMessages);
 
 export default router;

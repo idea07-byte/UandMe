@@ -76,6 +76,28 @@ const messageSchema = new mongoose.Schema(
         ref: 'User',
       },
     ],
+    isEdited: {
+      type: Boolean,
+      default: false,
+    },
+    editedAt: {
+      type: Date,
+      default: null,
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    deletedAt: {
+      type: Date,
+      default: null,
+    },
+    deletedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
   },
   {
     timestamps: true, // Automatically provides createdAt and updatedAt fields
@@ -84,7 +106,8 @@ const messageSchema = new mongoose.Schema(
   }
 );
 
-// High-performance compound index for paginated message retrieval by conversation
+// High-performance compound indexes for paginated chronological and reverse-cursor queries
+messageSchema.index({ conversationId: 1, createdAt: 1 });
 messageSchema.index({ conversationId: 1, createdAt: -1 });
 
 // Frontend compatibility virtual getters
@@ -96,8 +119,9 @@ messageSchema.virtual('content').get(function () {
   return this.text;
 });
 
-// Custom validator ensuring a message contains at least text or one attachment
+// Custom validator ensuring an active message contains at least text or one attachment
 messageSchema.pre('validate', function () {
+  if (this.isDeleted) return; // Deleted tombstone messages can have empty/cleared attachments
   const hasText = this.text && this.text.trim().length > 0;
   const hasAttachment = this.attachments && this.attachments.length > 0;
   if (!hasText && !hasAttachment) {

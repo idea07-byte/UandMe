@@ -57,6 +57,13 @@ app.get('/', (req, res) => {
         getById: 'GET /api/users/:id',
         updateMe: 'PATCH /api/users/me',
       },
+      conversations: {
+        list: 'GET /api/conversations (or GET /api/chats)',
+        create: 'POST /api/conversations',
+        getById: 'GET /api/conversations/:id',
+        listMessages: 'GET /api/conversations/:conversationId/messages',
+        sendMessage: 'POST /api/conversations/:conversationId/messages',
+      },
       chats: {
         list: 'GET /api/chats',
         accessOrCreate: 'POST /api/chats',
@@ -67,10 +74,13 @@ app.get('/', (req, res) => {
         participants: 'PATCH /api/chats/:id/participants',
       },
       messages: {
-        listForChat: 'GET /api/messages/:chatId (or GET /api/chats/:id/messages)',
-        send: 'POST /api/messages (or POST /api/chats/:id/messages)',
+        sendToConversation: 'POST /api/conversations/:conversationId/messages',
+        listForConversation: 'GET /api/conversations/:conversationId/messages',
+        edit: 'PATCH /api/messages/:messageId',
+        delete: 'DELETE /api/messages/:messageId',
         markRead: 'PATCH /api/messages/:chatId/read (or POST /api/messages/read)',
-        delete: 'DELETE /api/messages/:id',
+        listForChat: 'GET /api/messages/:chatId',
+        send: 'POST /api/messages',
       },
     },
   });
@@ -84,6 +94,7 @@ app.use('/api/users', userRoutes);
 
 // Conversation & Chat API Routes
 app.use('/api/chats', chatRoutes);
+app.use('/api/conversations', chatRoutes);
 
 // Messaging API Routes
 app.use('/api/messages', messageRoutes);
