@@ -3,6 +3,8 @@ import cors from 'cors';
 import mongoose from 'mongoose';
 import authRoutes from './routes/authRoutes.js';
 import userRoutes from './routes/userRoutes.js';
+import chatRoutes from './routes/chatRoutes.js';
+import messageRoutes from './routes/messageRoutes.js';
 
 const app = express();
 
@@ -55,6 +57,21 @@ app.get('/', (req, res) => {
         getById: 'GET /api/users/:id',
         updateMe: 'PATCH /api/users/me',
       },
+      chats: {
+        list: 'GET /api/chats',
+        accessOrCreate: 'POST /api/chats',
+        createGroup: 'POST /api/chats/group',
+        getById: 'GET /api/chats/:id',
+        updateFlags: 'PATCH /api/chats/:id',
+        delete: 'DELETE /api/chats/:id',
+        participants: 'PATCH /api/chats/:id/participants',
+      },
+      messages: {
+        listForChat: 'GET /api/messages/:chatId (or GET /api/chats/:id/messages)',
+        send: 'POST /api/messages (or POST /api/chats/:id/messages)',
+        markRead: 'PATCH /api/messages/:chatId/read (or POST /api/messages/read)',
+        delete: 'DELETE /api/messages/:id',
+      },
     },
   });
 });
@@ -64,6 +81,13 @@ app.use('/api/auth', authRoutes);
 
 // User Management API Routes
 app.use('/api/users', userRoutes);
+
+// Conversation & Chat API Routes
+app.use('/api/chats', chatRoutes);
+
+// Messaging API Routes
+app.use('/api/messages', messageRoutes);
+
 
 // Health check endpoint: Monitored by Docker, uptime services, and frontend checks
 app.get('/api/health', (req, res) => {

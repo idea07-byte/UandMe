@@ -171,3 +171,138 @@ export const validateUpdateProfileInput = (data) => {
 
   return { isValid: true, sanitizedUpdates: updates };
 };
+
+/**
+ * Validate direct 1-on-1 chat creation payload
+ * @param {Object} data - { userId }
+ * @param {string} currentUserId - Logged-in user's ID
+ * @returns {{ isValid: boolean, targetUserId?: string, error?: string }}
+ */
+export const validateDirectChatInput = (data, currentUserId) => {
+  if (!data || typeof data !== 'object') {
+    return { isValid: false, error: 'Request body must be a valid JSON object' };
+  }
+
+  const targetUserId = data.userId || data.partnerId;
+  if (!targetUserId || typeof targetUserId !== 'string') {
+    return { isValid: false, error: 'Target userId is required to start a direct conversation' };
+  }
+
+  if (!isValidObjectId(targetUserId)) {
+    return {
+      isValid: false,
+      error: 'Invalid target userId format: Must be a valid 24-character hexadecimal ObjectId',
+    };
+  }
+
+  if (targetUserId.toString() === currentUserId.toString()) {
+    return { isValid: false, error: 'Cannot create a direct conversation with yourself' };
+  }
+
+  return { isValid: true, targetUserId };
+};
+
+/**
+ * Validate group chat creation payload
+ * @param {Object} data - { name / chatName, participants / users, avatar }
+ * @param {string} currentUserId - Logged-in user's ID
+ * @returns {{ isValid: boolean, name?: string, participants?: string[], avatar?: string, error?: string }}
+ */
+export const validateGroupChatInput = (data, currentUserId) => {
+  if (!data || typeof data !== 'object') {
+    return { isValid: false, error: 'Request body must be a valid JSON object' };
+  }
+
+  const name =
+    typeof data.name === 'string'
+      ? data.name
+      : typeof data.chatName === 'string'
+      ? data.chatName
+      : '';
+  if (!name || name.trim().length < 2) {
+    return { isValid: false, error: 'Group title must be at least 2 characters long' };
+  }
+  if (name.trim().length > 60) {
+    return { isValid: false, error: 'Group title cannot exceed 60 characters' };
+  }
+
+  const rawParticipants = data.participants || data.users;
+  if (!Array.isArray(rawParticipants) || rawParticipants.length < 2) {
+    return { isValid: false, error: 'Group chat requires at least 2 other participants' };
+  }
+
+  const participantIds = new Set();
+  for (const item of rawParticipants) {
+    const id = typeof item === 'object' && item !== null ? item._id || item.id : item;
+    if (!id || typeof id !== 'string' || !isValidObjectId(id)) {
+      return { isValid: false, error: `Invalid participant ID in list: "${id}"` };
+    }
+    if (id.toString() !== currentUserId.toString()) {
+      participantIds.add(id.toString());
+    }
+  }
+
+  if (participantIds.size < 2) {
+    return { isValid: false, error: 'Group chat requires at least 2 unique other participants' };
+  }
+
+  // Include current user in group participants
+  participantIds.add(currentUserId.toString());
+
+  return {
+    isValid: true,
+    name: name.trim(),
+    participants: Array.from(participantIds),
+    avatar: typeof data.avatar === 'string' ? data.avatar.trim() : '',
+  };
+};
+
+/**
+ * Validate message sending payload
+ * @param {Object} data - { chatId / conversationId, text / content, attachments, clientMessageId }
+ * @returns {{ isValid: boolean, chatId?: string, text?: string, attachments?: Array, clientMessageId?: string, error?: string }}
+ */
+export const validateSendMessageInput = (data) => {
+  if (!data || typeof data !== 'object') {
+    return { isValid: false, error: 'Request body must be a valid JSON object' };
+  }
+
+  const chatId = data.chatId || data.conversationId;
+  if (!chatId || typeof chatId !== 'string' || !isValidObjectId(chatId)) {
+    return { isValid: false, error: 'Valid chatId (or conversationId) is required' };
+  }
+
+  const rawText =
+    typeof data.text === 'string'
+      ? data.text
+      : typeof data.content === 'string'
+      ? data.content
+      : '';
+  const text = rawText.trim();
+  const attachments = Array.isArray(data.attachments) ? data.attachments : [];
+
+  if (text.length === 0 && attachments.length === 0) {
+    return {
+      isValid: false,
+      error: 'Message cannot be empty: provide text or at least one attachment',
+    };
+  }
+
+  if (text.length > 2000) {
+    return { isValid: false, error: 'Message text cannot exceed 2000 characters' };
+  }
+
+  const clientMessageId =
+    typeof data.clientMessageId === 'string'
+      ? data.clientMessageId.trim().substring(0, 100)
+      : null;
+
+  return {
+    isValid: true,
+    chatId,
+    text,
+    attachments,
+    clientMessageId,
+  };
+};
+

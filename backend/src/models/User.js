@@ -113,6 +113,11 @@ userSchema.methods.comparePassword = async function (candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
+// Frontend compatibility: virtual getter for username mapping to name
+userSchema.virtual('username').get(function () {
+  return this.name;
+});
+
 /**
  * Transform to JSON: Guarantees password hash and internal __v are never leaked in API responses
  */
@@ -120,9 +125,14 @@ userSchema.methods.toJSON = function () {
   const userObject = this.toObject();
   delete userObject.password;
   delete userObject.__v;
+  userObject.id = userObject._id.toString();
+  if (!userObject.username && userObject.name) {
+    userObject.username = userObject.name;
+  }
   return userObject;
 };
 
 const User = mongoose.model('User', userSchema);
+
 
 export default User;

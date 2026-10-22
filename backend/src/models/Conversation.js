@@ -78,6 +78,8 @@ const conversationSchema = new mongoose.Schema(
   },
   {
     timestamps: true, // Automatically provides createdAt and updatedAt fields
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
   }
 );
 
@@ -85,6 +87,30 @@ const conversationSchema = new mongoose.Schema(
 conversationSchema.index({ participants: 1, 'lastMessage.timestamp': -1 });
 conversationSchema.index({ participants: 1, updatedAt: -1 });
 
+// Frontend compatibility virtual getters
+conversationSchema.virtual('isGroupChat').get(function () {
+  return this.isGroup;
+});
+
+conversationSchema.virtual('chatName').get(function () {
+  return this.name;
+});
+
+conversationSchema.virtual('latestMessage').get(function () {
+  if (!this.lastMessage || (!this.lastMessage.text && !this.lastMessage.sender)) {
+    return null;
+  }
+  return {
+    content: this.lastMessage.text,
+    text: this.lastMessage.text,
+    sender: this.lastMessage.sender,
+    createdAt: this.lastMessage.timestamp,
+    timestamp: this.lastMessage.timestamp,
+    status: this.lastMessage.status,
+  };
+});
+
 const Conversation = mongoose.model('Conversation', conversationSchema);
 
 export default Conversation;
+

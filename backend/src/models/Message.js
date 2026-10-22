@@ -79,11 +79,22 @@ const messageSchema = new mongoose.Schema(
   },
   {
     timestamps: true, // Automatically provides createdAt and updatedAt fields
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
   }
 );
 
 // High-performance compound index for paginated message retrieval by conversation
 messageSchema.index({ conversationId: 1, createdAt: -1 });
+
+// Frontend compatibility virtual getters
+messageSchema.virtual('chat').get(function () {
+  return this.conversationId;
+});
+
+messageSchema.virtual('content').get(function () {
+  return this.text;
+});
 
 // Custom validator ensuring a message contains at least text or one attachment
 messageSchema.pre('validate', function () {
@@ -97,3 +108,4 @@ messageSchema.pre('validate', function () {
 const Message = mongoose.model('Message', messageSchema);
 
 export default Message;
+
