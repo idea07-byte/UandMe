@@ -157,7 +157,7 @@ export const searchUsers = async (req, res, next) => {
  */
 export const getUserById = async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const id = req.params.userId || req.params.id;
 
     // 1. Validate MongoDB ObjectId format
     if (!isValidObjectId(id)) {
