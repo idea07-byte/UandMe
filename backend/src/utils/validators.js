@@ -21,6 +21,7 @@ export const normalizeEmail = (email) => {
  */
 export const isValidObjectId = (id) => {
   return (
+    typeof id === 'string' &&
     mongoose.Types.ObjectId.isValid(id) &&
     new mongoose.Types.ObjectId(id).toString() === id
   );
@@ -49,6 +50,10 @@ export const validateRegisterInput = ({ name, email, password }) => {
     return { isValid: false, error: 'Password must be at least 6 characters long' };
   }
 
+  if (password.length > 128) {
+    return { isValid: false, error: 'Password cannot exceed 128 characters' };
+  }
+
   return { isValid: true };
 };
 
@@ -65,6 +70,10 @@ export const validateLoginInput = ({ email, password }) => {
 
   if (!password || typeof password !== 'string' || password.length === 0) {
     return { isValid: false, error: 'Password is required' };
+  }
+
+  if (password.length > 128) {
+    return { isValid: false, error: 'Password cannot exceed 128 characters' };
   }
 
   return { isValid: true };

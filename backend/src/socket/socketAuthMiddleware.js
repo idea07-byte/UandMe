@@ -41,7 +41,7 @@ export const socketAuthMiddleware = async (socket, next) => {
 
     let decoded;
     try {
-      decoded = jwt.verify(token, secret);
+      decoded = jwt.verify(token, secret, { algorithms: ['HS256'] });
     } catch (jwtErr) {
       const isExpired = jwtErr.name === 'TokenExpiredError';
       const authError = new Error(

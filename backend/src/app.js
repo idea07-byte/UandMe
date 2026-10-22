@@ -1,39 +1,95 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import mongoose from 'mongoose';
+import validateEnv from './config/envValidator.js';
+import mongoSanitize from './middleware/mongoSanitize.js';
+import { apiLimiter } from './middleware/rateLimiter.js';
+import dbGuard from './middleware/dbGuard.js';
+import { safeError } from './utils/logger.js';
 import authRoutes from './routes/authRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
 import messageRoutes from './routes/messageRoutes.js';
 
+// 1. Fail-fast environment variable validation
+try {
+  validateEnv();
+} catch (envErr) {
+  // Allow test runners that set custom variables to proceed if valid
+  if (process.env.NODE_ENV !== 'test') {
+    throw envErr;
+  }
+}
+
 const app = express();
 
 /**
  * -------------------------------------------------------------
- * 1. Global Middleware Configuration
+ * 1. Global Security Middleware Configuration
  * -------------------------------------------------------------
  */
 
-// Enable Cross-Origin Resource Sharing (CORS) so our React frontend can connect
-const allowedOrigin = process.env.CLIENT_URL || 'http://localhost:5173';
+// 1.1 Helmet: Comprehensive HTTP Security Headers
 app.use(
-  cors({
-    origin: allowedOrigin,
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        connectSrc: ["'self'", 'ws:', 'wss:', process.env.CLIENT_URL || 'http://localhost:5173'],
+        imgSrc: ["'self'", 'data:', 'https:', 'blob:'],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+      },
+    },
+    crossOriginEmbedderPolicy: false, // Allows cross-origin avatars and media resources
   })
 );
 
-// Built-in Express middleware to parse incoming JSON payloads (e.g. req.body)
-app.use(express.json());
+// 1.2 CORS with Whitelist Validation
+const allowedOriginEnv = process.env.CLIENT_URL || 'http://localhost:5173';
+const allowedOrigins = [
+  allowedOriginEnv,
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:3000',
+];
 
-// Built-in Express middleware to parse standard URL-encoded form data
-app.use(express.urlencoded({ extended: true }));
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (e.g. mobile apps, curl, server-to-server tests)
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error(`CORS blocked request from unauthorized origin: ${origin}`));
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    exposedHeaders: ['X-Next-Cursor', 'X-Has-More'],
+  })
+);
+
+// 1.3 Request-Body Size Limits (Prevents Denial-of-Service via payload flooding)
+app.use(express.json({ limit: '500kb' }));
+app.use(express.urlencoded({ extended: true, limit: '500kb' }));
+
+// 1.4 NoSQL Query Injection Sanitizer (Strips '$' and '.' query operator keys)
+app.use(mongoSanitize);
+
+// 1.5 Database Readiness Guard (Returns 503 instead of hanging if DB connection drops)
+app.use(dbGuard);
+
+// 1.6 Global API Rate Limiter
+app.use('/api', apiLimiter);
 
 /**
  * -------------------------------------------------------------
- * 2. Routes
+ * 2. Application Routes
  * -------------------------------------------------------------
  */
 
@@ -99,7 +155,6 @@ app.use('/api/conversations', chatRoutes);
 // Messaging API Routes
 app.use('/api/messages', messageRoutes);
 
-
 // Health check endpoint: Monitored by Docker, uptime services, and frontend checks
 app.get('/api/health', (req, res) => {
   const isDbConnected = mongoose.connection.readyState === 1;
@@ -124,7 +179,6 @@ app.get('/api/health', (req, res) => {
  * -------------------------------------------------------------
  * 3. 404 Route Not Found Middleware
  * -------------------------------------------------------------
- * Catches any request that did not match the routes defined above.
  */
 app.use((req, res) => {
   res.status(404).json({
@@ -138,11 +192,49 @@ app.use((req, res) => {
  * 4. Centralized Global Error Handling Middleware
  * -------------------------------------------------------------
  * Catches any synchronous or asynchronous errors forwarded via next(err).
- * Four parameters (err, req, res, next) define this as an error-handling middleware.
+ * Handles BodyParser PayloadTooLargeError, Mongoose CastError, and Duplicate Key Errors.
  */
 app.use((err, req, res, next) => {
-  const statusCode = err.statusCode || 500;
-  console.error(`[Server Error] ${req.method} ${req.originalUrl}:`, err.message);
+  // 1. Handle Payload Too Large (HTTP 413)
+  if (err.type === 'entity.too.large' || err.status === 413) {
+    return res.status(413).json({
+      status: 'error',
+      message: 'Payload too large: Request body exceeds maximum allowed size limit',
+      code: 'PAYLOAD_TOO_LARGE',
+    });
+  }
+
+  // 2. Handle Invalid JSON Payload syntax (HTTP 400)
+  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+    return res.status(400).json({
+      status: 'error',
+      message: 'Malformed JSON payload syntax',
+      code: 'INVALID_JSON_SYNTAX',
+    });
+  }
+
+  // 3. Handle Mongoose CastError (e.g. invalid ObjectId)
+  if (err.name === 'CastError') {
+    return res.status(400).json({
+      status: 'error',
+      message: `Invalid format for field "${err.path}": ${err.value}`,
+      code: 'INVALID_FIELD_FORMAT',
+    });
+  }
+
+  // 4. Handle Mongoose Duplicate Key Error (code 11000)
+  if (err.code === 11000) {
+    const field = Object.keys(err.keyPattern || {})[0] || 'field';
+    return res.status(409).json({
+      status: 'error',
+      message: `A record with that ${field} already exists`,
+      code: 'DUPLICATE_KEY_ERROR',
+    });
+  }
+
+  // 5. General Error Response (Hides internal stack traces in non-development environments)
+  const statusCode = err.statusCode || err.status || 500;
+  safeError(`[Server Error] ${req.method} ${req.originalUrl}:`, err.message);
 
   res.status(statusCode).json({
     status: 'error',

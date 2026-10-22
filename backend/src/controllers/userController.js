@@ -100,6 +100,12 @@ export const searchUsers = async (req, res, next) => {
 
     // 1. Sanitize user input against Regular Expression Denial of Service (ReDoS)
     const rawSearch = q.trim();
+    if (rawSearch.length > 50) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Search query cannot exceed 50 characters',
+      });
+    }
     const sanitized = rawSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
     // 2. Sensible result limits (default 10, max 20)

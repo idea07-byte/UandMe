@@ -14,11 +14,11 @@ export const protect = async (req, res, next) => {
     req.headers.authorization &&
     req.headers.authorization.startsWith('Bearer ')
   ) {
-    token = req.headers.authorization.split(' ')[1];
+    token = req.headers.authorization.split(' ')[1]?.trim();
   }
 
   // 2. Reject request if token is missing
-  if (!token) {
+  if (!token || typeof token !== 'string') {
     return res.status(401).json({
       status: 'error',
       message: 'Access denied: No authentication token provided',
@@ -26,8 +26,10 @@ export const protect = async (req, res, next) => {
   }
 
   try {
-    // 3. Verify token authenticity and expiration
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    // 3. Verify token authenticity and expiration with strict algorithm whitelisting
+    const decoded = jwt.verify(token, process.env.JWT_SECRET, {
+      algorithms: ['HS256'],
+    });
 
     // 4. Verify that the user still exists in the database
     const user = await User.findById(decoded.id);
