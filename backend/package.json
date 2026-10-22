@@ -12,7 +12,8 @@
     "test:phase4": "node test_phase4.js",
     "test:phase5": "node test_phase5.js",
     "test:phase6": "node test_phase6.js",
-    "test:phase7": "node test_phase7.js"
+    "test:phase7": "node test_phase7.js",
+    "test:phase9": "node test_phase9.js"
   },
   "keywords": [
     "nodejs",

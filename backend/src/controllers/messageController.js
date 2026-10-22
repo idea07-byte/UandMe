@@ -1,5 +1,6 @@
 import messageService from '../services/messageService.js';
 import { isValidObjectId } from '../utils/validators.js';
+import { safeGetIO } from '../socket/index.js';
 
 /**
  * Retrieve messages for a conversation.
@@ -71,6 +72,14 @@ export const sendMessage = async (req, res, next) => {
       clientMessageId,
     });
 
+    // Real-time broadcast to conversation room members via Socket.IO
+    const io = safeGetIO();
+    if (io) {
+      const convIdStr = (message.conversationId || conversationId).toString();
+      io.to(convIdStr).emit('message:received', message);
+      io.to(convIdStr).emit('receive_message', message);
+    }
+
     const isConversationRoute =
       req.baseUrl?.includes('conversations') || req.query.format === 'structured';
 
@@ -105,6 +114,20 @@ export const editMessage = async (req, res, next) => {
       text,
     });
 
+    // Real-time broadcast of message update to room members
+    const io = safeGetIO();
+    if (io) {
+      const convIdStr = (updated.conversationId || updated.chat).toString();
+      io.to(convIdStr).emit('message:updated', {
+        messageId: updated._id.toString(),
+        conversationId: convIdStr,
+        text: updated.text,
+        isEdited: true,
+        editedAt: updated.editedAt,
+        message: updated,
+      });
+    }
+
     return res.status(200).json({
       status: 'success',
       message: 'Message updated successfully',
@@ -131,6 +154,19 @@ export const deleteMessage = async (req, res, next) => {
       userId: req.user._id,
       mode,
     });
+
+    // Real-time broadcast of message deletion to room members
+    const io = safeGetIO();
+    if (io && result.conversationId) {
+      io.to(result.conversationId).emit('message:deleted', {
+        messageId: result.messageId.toString(),
+        conversationId: result.conversationId,
+        mode: result.mode,
+        deletedBy: req.user._id.toString(),
+        text: result.mode === 'soft' ? 'This message was deleted' : null,
+        timestamp: new Date().toISOString(),
+      });
+    }
 
     return res.status(200).json({
       status: 'success',
@@ -159,6 +195,24 @@ export const markMessagesAsRead = async (req, res, next) => {
       conversationId,
       userId: req.user._id,
     });
+
+    // Real-time broadcast of read status to room members
+    const io = safeGetIO();
+    if (io && conversationId) {
+      const convIdStr = conversationId.toString();
+      io.to(convIdStr).emit('message:read', {
+        conversationId: convIdStr,
+        readBy: req.user._id.toString(),
+        readByUserName: req.user.name,
+        timestamp: new Date().toISOString(),
+      });
+      io.to(convIdStr).emit('message_status_updated', {
+        conversationId: convIdStr,
+        status: 'read',
+        userId: req.user._id.toString(),
+        timestamp: new Date().toISOString(),
+      });
+    }
 
     return res.status(200).json({
       status: 'success',

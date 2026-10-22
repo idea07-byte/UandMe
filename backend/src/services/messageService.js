@@ -374,6 +374,7 @@ class MessageService {
 
       return {
         messageId,
+        conversationId: message.conversationId?.toString(),
         isDeleted: true,
         mode: 'hard',
       };
@@ -397,6 +398,7 @@ class MessageService {
 
       return {
         messageId,
+        conversationId: message.conversationId?.toString(),
         isDeleted: true,
         mode: 'soft',
         message,
