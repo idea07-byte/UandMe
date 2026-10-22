@@ -1,30 +1,40 @@
+import http from 'http';
 import dotenv from 'dotenv';
 
 // 1. Load environment variables before importing dependent modules
 dotenv.config();
 
-// 2. Import database connection helper and configured Express application
+// 2. Import database connection helper, configured Express application, and Socket.IO initializer
 import { connectDB, disconnectDB } from './config/database.js';
 import app from './app.js';
+import { initSocket } from './socket/index.js';
 
 const PORT = process.env.PORT || 5000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
-let server;
+let httpServer;
+let io;
 
 /**
- * Bootstrap function to initialize database connection before listening for HTTP traffic.
+ * Bootstrap function to initialize database connection before listening for HTTP & WebSocket traffic.
  */
 const startServer = async () => {
   // Connect to MongoDB first; connectDB exits the process if the connection fails
   await connectDB();
 
-  // Start HTTP server once database connection is established
-  server = app.listen(PORT, () => {
+  // Create native HTTP server wrapping Express app
+  httpServer = http.createServer(app);
+
+  // Initialize Socket.IO server attached to the HTTP server
+  io = initSocket(httpServer);
+
+  // Start HTTP and WebSocket server once database connection is established
+  httpServer.listen(PORT, () => {
     console.log('====================================================');
-    console.log(`🚀 PulseChat Backend API running successfully!`);
+    console.log(`🚀 PulseChat Backend API & Socket.IO running!`);
     console.log(`📡 URL:         http://localhost:${PORT}`);
     console.log(`🩺 Health API:  http://localhost:${PORT}/api/health`);
+    console.log(`🔌 WebSockets:  ws://localhost:${PORT}`);
     console.log(`🌿 Environment: ${NODE_ENV}`);
     console.log('====================================================');
   });
@@ -47,9 +57,12 @@ process.on('uncaughtException', (error) => {
 // Graceful shutdown on process termination signals (e.g. Ctrl+C or Docker stop)
 const handleGracefulShutdown = async (signal) => {
   console.log(`\n${signal} signal received: Closing server gracefully...`);
-  if (server) {
-    server.close(async () => {
-      console.log('HTTP server closed.');
+  if (io) {
+    io.close();
+  }
+  if (httpServer) {
+    httpServer.close(async () => {
+      console.log('HTTP and WebSocket server closed.');
       await disconnectDB();
       process.exit(0);
     });

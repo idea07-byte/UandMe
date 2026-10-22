@@ -183,7 +183,8 @@ export const validateDirectChatInput = (data, currentUserId) => {
     return { isValid: false, error: 'Request body must be a valid JSON object' };
   }
 
-  const targetUserId = data.userId || data.partnerId;
+  const targetUserId =
+    data.userId || data.partnerId || data.recipientId || data.participantId;
   if (!targetUserId || typeof targetUserId !== 'string') {
     return { isValid: false, error: 'Target userId is required to start a direct conversation' };
   }
