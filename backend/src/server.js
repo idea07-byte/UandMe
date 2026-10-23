@@ -1,8 +1,13 @@
 import http from 'http';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 
-// 1. Load environment variables before importing dependent modules
-dotenv.config();
+// 1. Load environment variables reliably regardless of working directory
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
+dotenv.config(); // fallback to cwd .env if present
 
 // 2. Import database connection helper, configured Express application, and Socket.IO initializer
 import { connectDB, disconnectDB } from './config/database.js';

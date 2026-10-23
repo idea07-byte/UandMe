@@ -10,7 +10,13 @@ export const validateEnv = () => {
   const NODE_ENV = process.env.NODE_ENV || 'development';
 
   // 1. JWT_SECRET check
-  const jwtSecret = process.env.JWT_SECRET;
+  let jwtSecret = process.env.JWT_SECRET;
+  if (!jwtSecret && NODE_ENV !== 'production') {
+    jwtSecret = 'pulsechat_super_secure_jwt_dev_secret_key_2026_campus_auth';
+    process.env.JWT_SECRET = jwtSecret;
+    warnings.push('JWT_SECRET was not set; using development default key.');
+  }
+
   if (!jwtSecret) {
     errors.push('JWT_SECRET is required but not configured in environment variables');
   } else {
@@ -32,7 +38,13 @@ export const validateEnv = () => {
   }
 
   // 2. MONGODB_URI check
-  const mongoUri = process.env.MONGODB_URI;
+  let mongoUri = process.env.MONGODB_URI;
+  if (!mongoUri && NODE_ENV !== 'production') {
+    mongoUri = 'mongodb://127.0.0.1:27017/pulsechat';
+    process.env.MONGODB_URI = mongoUri;
+    warnings.push('MONGODB_URI was not set; using local development default: mongodb://127.0.0.1:27017/pulsechat');
+  }
+
   if (!mongoUri) {
     errors.push('MONGODB_URI is required but not configured in environment variables');
   } else if (!mongoUri.startsWith('mongodb://') && !mongoUri.startsWith('mongodb+srv://')) {
