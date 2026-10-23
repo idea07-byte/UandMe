@@ -165,7 +165,7 @@ export const RegisterPage = () => {
           name="name"
           label="Full Name"
           type="text"
-          placeholder="Jordan Miller"
+          placeholder="Enter your full name"
           required
           autoComplete="name"
           value={name}
