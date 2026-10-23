@@ -1,37 +1,15 @@
 {
-  "name": "iandu",
+  "name": "pulsechat",
+  "version": "1.0.0",
   "private": true,
-  "version": "0.0.0",
-  "type": "module",
+  "description": "PulseChat - Real-Time Campus Messaging Platform (Fullstack Monorepo)",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "axios": "^1.20.0",
-    "clsx": "^2.1.1",
-    "lucide-react": "^1.60.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-router-dom": "^7.18.4",
-    "socket.io-client": "^4.8.4",
-    "tailwind-merge": "^3.7.0"
-  },
-  "devDependencies": {
-    "@eslint/js": "^9.13.0",
-    "@types/react": "^18.3.12",
-    "@types/react-dom": "^18.3.1",
-    "@vitejs/plugin-react": "^4.3.3",
-    "autoprefixer": "^10.6.1",
-    "eslint": "^9.13.0",
-    "eslint-plugin-react": "^7.37.2",
-    "eslint-plugin-react-hooks": "^5.0.0",
-    "eslint-plugin-react-refresh": "^0.4.14",
-    "globals": "^15.11.0",
-    "postcss": "^8.5.31",
-    "tailwindcss": "^3.4.17",
-    "vite": "^5.4.10"
+    "dev:frontend": "npm run dev --prefix frontend",
+    "dev:backend": "npm run dev --prefix backend",
+    "build:frontend": "npm run build --prefix frontend",
+    "test:backend": "npm test --prefix backend",
+    "test:backend:watch": "npm run test:watch --prefix backend",
+    "test:backend:coverage": "npm run test:coverage --prefix backend",
+    "install:all": "npm install --prefix frontend && npm install --prefix backend"
   }
 }

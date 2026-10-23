@@ -29,94 +29,41 @@
 ## 📂 Scalable Project Architecture
 
 ```text
-src/
-├── assets/                     # Static assets and icons
-├── components/
-│   ├── chat/                   # Phase 3 & 4: Messaging & New Chat components
-│   │   ├── ChatArea.jsx        # Active chat window container with blocked state banner
-│   │   ├── ChatEmptyState.jsx  # Welcoming empty state placeholder with feature badges
-│   │   ├── ChatHeader.jsx      # Header with presence, in-chat search & options dropdown
-│   │   ├── ChatSidebar.jsx     # Panel 1: Slim navigation sidebar with logo & user menu
-│   │   ├── ConversationItem.jsx# Conversation list card with badges (pin, muted, unread, blocked)
-│   │   ├── ConversationList.jsx# Panel 2: Search, category tabs, skeletons & new chat modal
-│   │   ├── MessageBubble.jsx   # Message bubble with checkmarks & search highlight
-│   │   ├── MessageComposer.jsx # Multiline input, emoji popover, attachments & send
-│   │   ├── MessageList.jsx     # Stream with date dividers, typing & scroll-to-bottom
-│   │   ├── NewChatModal.jsx    # Search registered users by name/email & profile preview
-│   │   ├── OnlineIndicator.jsx # Live status dot (online/away/busy/offline) with ping
-│   │   └── TypingIndicator.jsx # Animated 3-dot pulse indicator with contact avatar
-│   ├── common/                 # Core design system components
-│   │   ├── Avatar.jsx          # Avatar with status indicators & deterministic colors
-│   │   ├── Button.jsx          # Button (primary, secondary, outline, ghost, danger)
-│   │   ├── ConfirmationModal.jsx # Accessible alertdialog for destructive/critical actions
-│   │   ├── EmptyState.jsx      # Generic placeholder illustration & actions
-│   │   ├── ErrorState.jsx      # Error alert card with retry triggers
-│   │   ├── Input.jsx           # Form input with validation and password toggle
-│   │   ├── LoadingSpinner.jsx  # Scalable spinners with fullscreen mode
-│   │   ├── Modal.jsx           # Accessible dialog with blur backdrop & Esc key
-│   │   └── Toast.jsx           # Notification alert card
-│   ├── contacts/               # Phase 4: Contacts directory components
-│   │   ├── ContactCard.jsx     # Contact list item card with status, star & quick chat
-│   │   ├── ContactDetailsPanel.jsx # Rich contact profile inspector & action triggers
-│   │   └── ContactList.jsx     # Alphabetical grouping (A-Z) & quick-jump navigation
-│   ├── forms/                  # Form elements
-│   │   ├── FormGroup.jsx       # Field wrapper with labels and hints
-│   │   ├── PasswordStrengthIndicator.jsx # 4-tier visual password strength meter
-│   │   └── SearchInput.jsx     # Search bar with quick-clear button
-│   ├── layout/                 # Application layout elements
-│   │   ├── Navbar.jsx          # Global header for profile/settings & design system
-│   │   └── Sidebar.jsx         # Legacy layout sidebar
-│   └── settings/               # Phase 5: Reusable Settings components
-│       ├── AvatarPickerModal.jsx # Avatar upload, presets picker & custom URL modal
-│       ├── SettingsCard.jsx    # Standardized settings container card
-│       ├── SettingsRadioGroup.jsx # Accessible radio option groups
-│       └── SettingsToggle.jsx  # Accessible WAI-ARIA role="switch" toggle controls
-├── context/
-│   ├── AuthContext.jsx         # Authentication session & user state
-│   ├── ThemeContext.jsx        # Dark / Light / System theme synchronization
-│   └── ToastContext.jsx        # Dynamic floating toast notification queue
-├── hooks/
-│   ├── useAuth.js              # Auth hook
-│   ├── useDebounce.js          # Fast-typing debouncer
-│   ├── useTheme.js             # Theme toggle hook
-│   └── useToast.js             # Toast trigger hook (success, error, info)
-├── layouts/
-│   ├── AuthLayout.jsx          # Split-pane branding layout for all authentication screens
-│   ├── MainLayout.jsx          # Responsive shell supporting full-height workspaces
-│   └── SettingsLayout.jsx      # Two-panel settings workspace with responsive mobile tabs
-├── pages/
-│   ├── ChatPage.jsx            # 3-panel desktop-first messaging workspace
-│   ├── ContactsPage.jsx        # Phase 4: Full Contacts workspace with demo sandbox
-│   ├── DesignSystemPage.jsx    # Interactive showcase for all UI components
-│   ├── EmailVerificationPage.jsx # Email verification status (verified/pending/expired)
-│   ├── ForgotPasswordPage.jsx  # Password recovery with confirmed dispatch state
-│   ├── LoginPage.jsx           # Sign-in form with client validation and sandbox mode
-│   ├── NotFoundPage.jsx        # 404 page
-│   ├── ProfilePage.jsx         # Legacy profile route redirecting to /settings/profile
-│   ├── RegisterPage.jsx        # Sign-up page with password strength evaluation
-│   ├── ResetPasswordPage.jsx   # Token-based password reset interface
-│   └── settings/               # Phase 5: Dedicated Settings Pages
-│       ├── AccountSettingsPage.jsx     # Account info, storage quota, signout & delete account
-│       ├── AppearanceSettingsPage.jsx  # Light/Dark/System themes & chat density
-│       ├── NotificationSettingsPage.jsx# Alerts, chime tone tester & preview privacy
-│       ├── PrivacySettingsPage.jsx     # Last seen, online status, read receipts & blocks
-│       ├── ProfileSettingsPage.jsx     # Personal info, avatar picker & presence status
-│       └── SecuritySettingsPage.jsx    # Password change, strength meter & active sessions
-├── services/
-│   ├── api.js                  # Axios instance with Bearer token interceptor
-│   ├── authService.js          # Authentication service with REST endpoints & dev sandbox
-│   ├── chatService.js          # Asynchronous chat service with mock data
-│   ├── mockChatData.js         # Mock data (users, contacts across A-Z, registered directory)
-│   └── socket.js               # Socket.IO client singleton wrapper
-├── styles/
-│   └── index.css               # Tailwind directives, sleek scrollbars & glassmorphism
-├── utils/
-│   ├── cn.js                   # Tailwind class merging utility (clsx + twMerge)
-│   ├── constants.js            # Global constants (endpoints, statuses, themes)
-│   ├── formatters.js           # Date dividers, time formatting, initials & avatar colors
-│   └── validators.js           # RFC email regex, password strength & validation rules
-├── App.jsx                     # Root router, route guards & provider hierarchy
-└── main.jsx                    # Application entry point
+iAndU/
+├── frontend/                   # React.js + Vite + Tailwind CSS Single Page Application
+│   ├── public/                 # Static assets and icons
+│   ├── src/
+│   │   ├── components/         # Chat, common, contacts, forms, layout, settings
+│   │   ├── context/            # AuthContext, ThemeContext, ToastContext, SocketContext
+│   │   ├── hooks/              # useAuth, useDebounce, useSocket, useTheme, useToast
+│   │   ├── layouts/            # AuthLayout, MainLayout, SettingsLayout
+│   │   ├── pages/              # ChatPage, ContactsPage, Settings, Auth pages
+│   │   ├── services/           # api, authService, chatService, messagingService, socket
+│   │   ├── styles/             # index.css with design tokens
+│   │   └── utils/              # cn, constants, formatters, validators
+│   ├── index.html              # HTML entry point
+│   ├── vite.config.js          # Vite build config
+│   ├── tailwind.config.js      # Tailwind design system configuration
+│   ├── package.json            # Frontend dependencies & scripts
+│   └── .env                    # Frontend environment variables
+│
+├── backend/                    # Node.js + Express + Socket.IO + MongoDB Server
+│   ├── src/
+│   │   ├── config/             # DB connection & environment validation
+│   │   ├── controllers/        # auth, user, chat, message controllers
+│   │   ├── middleware/         # authMiddleware, helmet, rateLimiter, dbGuard, mongoSanitize
+│   │   ├── models/             # Mongoose schemas (User, Conversation, Message)
+│   │   ├── routes/             # REST endpoints (/api/auth, /api/users, /api/chats, /api/messages)
+│   │   ├── services/           # messageService and conversation queries
+│   │   ├── socket/             # Socket.IO handlers (room join, send, typing, read, presence)
+│   │   └── utils/              # validators, safe logger
+│   ├── tests/                  # Vitest + Supertest automated integration test suite
+│   ├── vitest.config.js        # Test runner configuration
+│   ├── package.json            # Backend dependencies & test scripts
+│   └── .env                    # Backend environment variables
+│
+├── package.json                # Root workspace orchestration scripts
+└── README.md                   # Project documentation & architectural specification
 ```
 
 ---
@@ -405,33 +352,50 @@ Broadcast peer typing state to members currently in `conversationId`.
 ## 🛠️ Installation & Getting Started
 
 ### 1. Prerequisites
-Ensure you have **Node.js** (version `18.0.0` or higher) installed:
+Ensure you have **Node.js** (version `18.0.0` or higher) and **MongoDB** running:
 ```bash
 node -v
 npm -v
 ```
 
-### 2. Configure Environment
+### 2. Configure Environment Files
+Configure both the frontend and backend environment files:
 ```bash
-cp .env.example .env
+# Frontend environment
+cp frontend/.env.example frontend/.env
+
+# Backend environment
+cp backend/.env.example backend/.env
 ```
 
 ### 3. Install Dependencies
+Install dependencies for both workspaces:
 ```bash
-npm install
+npm run install:all
+```
+*(Or navigate to `frontend` and `backend` separately and run `npm install`).*
+
+### 4. Running the Development Servers
+In the project root, you can start the frontend and backend servers:
+```bash
+# Terminal 1: Start Backend (Express + Socket.IO on http://localhost:5000)
+npm run dev:backend
+
+# Terminal 2: Start Frontend (Vite Dev Server on http://localhost:5173)
+npm run dev:frontend
 ```
 
-### 4. Start Development Server
+### 5. Running Automated Backend Tests
+Run the complete Vitest + Supertest integration test suite (24 tests across auth, users, chats, messages, and sockets):
 ```bash
-npm run dev
+npm run test:backend
 ```
-Open **`http://localhost:5173`** in your browser.
 
-### 5. Build for Production
+### 6. Build Frontend for Production
 ```bash
-npm run build
+npm run build:frontend
 ```
-*(Verified: compiles in ~6.8 seconds with zero errors).*
+*(Verified: compiles in ~5.3 seconds with zero errors).*
 
 ---
 
