@@ -4,6 +4,7 @@
   "private": true,
   "description": "PulseChat - Real-Time Campus Messaging Platform (Fullstack Monorepo)",
   "scripts": {
+    "dev": "concurrently -n \"backend,frontend\" -c \"blue,green\" \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:frontend": "npm run dev --prefix frontend",
     "dev:backend": "npm run dev --prefix backend",
     "build:frontend": "npm run build --prefix frontend",
@@ -11,5 +12,8 @@
     "test:backend:watch": "npm run test:watch --prefix backend",
     "test:backend:coverage": "npm run test:coverage --prefix backend",
     "install:all": "npm install --prefix frontend && npm install --prefix backend"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.6"
   }
 }
