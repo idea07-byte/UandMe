@@ -33,7 +33,11 @@ export const isValidObjectId = (id) => {
  * @returns {{ isValid: boolean, error?: string }}
  */
 export const validateRegisterInput = ({ name, email, password }) => {
-  if (!name || typeof name !== 'string' || name.trim().length < 2) {
+  if (!name || typeof name !== 'string' || !name.trim()) {
+    return { isValid: false, error: 'Please enter your full name' };
+  }
+
+  if (name.trim().length < 2) {
     return { isValid: false, error: 'Name must be at least 2 characters long' };
   }
 
