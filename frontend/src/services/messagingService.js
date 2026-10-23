@@ -150,7 +150,7 @@ class MessagingService {
    * @param {string} [params.clientMessageId]
    * @returns {Object} Optimistic message representation
    */
-  sendMessage({ conversationId, text, attachments = [], sender = {}, clientMessageId }) {
+  sendMessage({ conversationId, text, attachments = [], sender = {}, clientMessageId, replyTo = null }) {
     if (!conversationId) {
       throw new Error('conversationId is required to send a message');
     }
@@ -167,6 +167,7 @@ class MessagingService {
       senderName: sender.name || currentUser?.name || 'You',
       text: (text || '').trim(),
       attachments: attachments || [],
+      replyTo: replyTo || null,
       timestamp: new Date().toISOString(),
       status: MESSAGE_STATUS.SENDING,
       isOptimistic: true,

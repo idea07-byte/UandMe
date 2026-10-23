@@ -1,8 +1,15 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import ChatSidebar from '../components/chat/ChatSidebar';
+import WhatsAppNavRail from '../components/chat/WhatsAppNavRail';
 import ConversationList from '../components/chat/ConversationList';
 import ChatArea from '../components/chat/ChatArea';
+import ChatEmptyState from '../components/chat/ChatEmptyState';
+import CallsList from '../components/chat/CallsList';
+import CallsEmptyState from '../components/chat/CallsEmptyState';
+import StatusList from '../components/chat/StatusList';
+import StatusEmptyState from '../components/chat/StatusEmptyState';
+import CommunitiesList from '../components/chat/CommunitiesList';
+import CommunitiesEmptyState from '../components/chat/CommunitiesEmptyState';
 import chatService from '../services/chatService';
 import useToast from '../hooks/useToast';
 import useAuth from '../hooks/useAuth';
@@ -16,8 +23,8 @@ export const ChatPage = () => {
   const { user } = useAuth();
   const { messagingService } = useSocket();
 
-  // Navigation sidebar state ('chats' | 'contacts' | 'archived')
-  const [activeNav, setActiveNav] = useState('chats');
+  // Navigation rail section ('chats' | 'calls' | 'status' | 'communities' | 'archived' | 'starred' | 'settings')
+  const [activeSection, setActiveSection] = useState('chats');
 
   // Conversation list state
   const [conversations, setConversations] = useState([]);
@@ -41,7 +48,7 @@ export const ChatPage = () => {
       const data = await chatService.getConversations({
         filter: filterTab,
         search: searchQuery,
-        view: activeNav,
+        view: activeSection,
       });
       setConversations(data);
     } catch {
@@ -49,19 +56,12 @@ export const ChatPage = () => {
     } finally {
       setIsLoadingList(false);
     }
-  }, [activeNav, filterTab, searchQuery, toast]);
+  }, [activeSection, filterTab, searchQuery, toast]);
 
   // Initial load
   useEffect(() => {
     loadConversations();
   }, [loadConversations]);
-
-  // Load contacts when activeNav is 'contacts'
-  useEffect(() => {
-    if (activeNav === 'contacts') {
-      chatService.getContacts().then((data) => setContacts(data));
-    }
-  }, [activeNav]);
 
   // Sync route param with activeConversationId
   useEffect(() => {
@@ -201,12 +201,14 @@ export const ChatPage = () => {
     });
 
     // 4. Remote stop typing indicator
-    const unsubStopTyping = messagingService.onStopTyping(({ conversationId }) => {
-      if (conversationId === activeConversationId) {
-        setIsTyping(false);
-        setTypingUserName('');
-      }
-    });
+    const unsubStopTyping = messagingService.stopTyping
+      ? messagingService.onStopTyping(({ conversationId }) => {
+          if (conversationId === activeConversationId) {
+            setIsTyping(false);
+            setTypingUserName('');
+          }
+        })
+      : () => {};
 
     // 5. Network / Room authorization errors
     const unsubError = messagingService.onError((err) => {
@@ -217,7 +219,7 @@ export const ChatPage = () => {
       unsubMsg();
       unsubStatus();
       unsubTyping();
-      unsubStopTyping();
+      unsubStopTyping?.();
       unsubError();
     };
   }, [activeConversationId, messagingService, user, toast]);
@@ -245,7 +247,7 @@ export const ChatPage = () => {
   };
 
   // Handle sending a message with optimistic UI and service reconciliation
-  const handleSendMessage = (text, attachments = []) => {
+  const handleSendMessage = (text, attachments = [], replyTo = null) => {
     if (!activeConversationId) return;
 
     // 1. Dispatch through messagingService to obtain optimistic representation
@@ -253,6 +255,7 @@ export const ChatPage = () => {
       conversationId: activeConversationId,
       text,
       attachments,
+      replyTo,
       sender: { id: user?.id || 'usr_me_1', name: user?.name || 'You' },
     });
 
@@ -309,7 +312,7 @@ export const ChatPage = () => {
     setConversations((prev) => [created, ...prev.filter((c) => c.id !== created.id)]);
     setActiveConversationId(created.id);
     navigate(`/chat/${created.id}`);
-    setActiveNav('chats');
+    setActiveSection('chats');
   };
 
   // Handle toggling pin
@@ -325,7 +328,7 @@ export const ChatPage = () => {
         return timeB - timeA;
       });
     });
-    toast.success(isPinned ? 'Conversation pinned to top' : 'Conversation unpinned');
+    toast.success(isPinned ? 'Chat pinned to top' : 'Chat unpinned');
   };
 
   // Handle toggling mute
@@ -334,7 +337,7 @@ export const ChatPage = () => {
     setConversations((prev) =>
       prev.map((c) => (c.id === id ? { ...c, isMuted } : c))
     );
-    toast.info(isMuted ? 'Notifications muted for this chat' : 'Notifications unmuted');
+    toast.info(isMuted ? 'Notifications muted' : 'Notifications unmuted');
   };
 
   // Handle toggling archive
@@ -343,7 +346,7 @@ export const ChatPage = () => {
     setConversations((prev) =>
       prev.map((c) => (c.id === id ? { ...c, isArchived } : c))
     );
-    toast.success(isArchived ? 'Conversation archived' : 'Conversation restored from archive');
+    toast.success(isArchived ? 'Chat archived' : 'Chat restored from archive');
     loadConversations();
   };
 
@@ -405,88 +408,172 @@ export const ChatPage = () => {
     );
 
     if (updatedBlocked) {
-      toast.error(`Blocked ${contact.name}. You will no longer receive their messages.`);
+      toast.error(`Blocked ${contact.name}. You will no longer receive messages or calls.`);
     } else {
-      toast.success(`Unblocked ${contact.name}. You can resume messaging.`);
+      toast.success(`Unblocked ${contact.name}.`);
     }
   };
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-charcoal-50 dark:bg-charcoal-950">
-      {/* Panel 1: Primary Navigation Icon Sidebar */}
-      <ChatSidebar
-        activeNav={activeNav}
-        onNavChange={(nav) => {
-          setActiveNav(nav);
-          if (nav === 'contacts') {
-            navigate('/contacts');
+    <div className="flex h-screen w-full overflow-hidden bg-[#0B141A] text-[#E9EDEF]">
+      {/* 1st Pane: WhatsApp Thin Navigation Rail (Far Left) */}
+      <WhatsAppNavRail
+        activeSection={activeSection}
+        onSelectSection={(section) => {
+          setActiveSection(section);
+          if (section === 'settings') {
+            toast.info('Settings: Account, Privacy, Chats, Notifications, Shortcuts');
           }
         }}
-        unreadCount={unreadTotal}
+        unreadChatsCount={unreadTotal}
+        missedCallsCount={1}
+        hasUnreadStatus={true}
       />
 
-      {/* Panel 2: Conversation List Sidebar */}
+      {/* 2nd Pane: Left List Pane (Chats / Calls / Status / Communities / Archived / Starred) */}
       <div
         className={cn(
           'h-full shrink-0',
-          // On mobile, show list when no conversation is active
-          activeConversationId ? 'hidden md:flex' : 'flex w-full md:w-auto'
+          // Responsive: Below 900px, if conversation is open, hide list pane
+          activeConversationId && activeSection === 'chats' ? 'hidden md:flex' : 'flex w-full md:w-auto'
         )}
       >
-        <ConversationList
-          conversations={conversations}
-          contacts={contacts}
-          activeConversationId={activeConversationId}
-          onSelectConversation={handleSelectConversation}
-          onAddConversation={handleAddConversation}
-          onTogglePin={handleTogglePin}
-          onToggleMute={handleToggleMute}
-          onToggleArchive={handleToggleArchive}
-          onToggleFavorite={handleToggleFavorite}
-          onToggleUnread={handleToggleUnread}
-          onClearChat={(c) => handleClearChat(c.id)}
-          onDeleteChat={(c) => handleDeleteChat(c.id)}
-          onToggleBlock={handleToggleBlock}
-          filterTab={filterTab}
-          onFilterChange={setFilterTab}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          isLoading={isLoadingList}
-          activeView={activeNav}
-        />
+        {activeSection === 'chats' && (
+          <ConversationList
+            conversations={conversations.filter((c) => !c.isArchived)}
+            contacts={contacts}
+            activeConversationId={activeConversationId}
+            onSelectConversation={handleSelectConversation}
+            onAddConversation={handleAddConversation}
+            onTogglePin={handleTogglePin}
+            onToggleMute={handleToggleMute}
+            onToggleArchive={handleToggleArchive}
+            onToggleFavorite={handleToggleFavorite}
+            onToggleUnread={handleToggleUnread}
+            onClearChat={(c) => handleClearChat(c.id)}
+            onDeleteChat={(c) => handleDeleteChat(c.id)}
+            onToggleBlock={handleToggleBlock}
+            filterTab={filterTab}
+            onFilterChange={setFilterTab}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            isLoading={isLoadingList}
+            activeView="chats"
+          />
+        )}
+
+        {activeSection === 'calls' && (
+          <CallsList
+            onSelectCall={(call) => toast.info(`Call history for ${call.name}`)}
+          />
+        )}
+
+        {activeSection === 'status' && (
+          <StatusList
+            onSelectStatus={(st) => toast.info(`Viewing status: ${st.name}`)}
+          />
+        )}
+
+        {activeSection === 'communities' && (
+          <CommunitiesList
+            onSelectGroup={(comm) => toast.info(`Opening ${comm.name}`)}
+          />
+        )}
+
+        {activeSection === 'archived' && (
+          <ConversationList
+            conversations={conversations.filter((c) => c.isArchived)}
+            contacts={contacts}
+            activeConversationId={activeConversationId}
+            onSelectConversation={handleSelectConversation}
+            onAddConversation={handleAddConversation}
+            onTogglePin={handleTogglePin}
+            onToggleMute={handleToggleMute}
+            onToggleArchive={handleToggleArchive}
+            onToggleFavorite={handleToggleFavorite}
+            onToggleUnread={handleToggleUnread}
+            onClearChat={(c) => handleClearChat(c.id)}
+            onDeleteChat={(c) => handleDeleteChat(c.id)}
+            onToggleBlock={handleToggleBlock}
+            filterTab={filterTab}
+            onFilterChange={setFilterTab}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            isLoading={isLoadingList}
+            activeView="archived"
+          />
+        )}
+
+        {activeSection === 'starred' && (
+          <ConversationList
+            conversations={conversations.filter((c) => c.isFavorite)}
+            contacts={contacts}
+            activeConversationId={activeConversationId}
+            onSelectConversation={handleSelectConversation}
+            onAddConversation={handleAddConversation}
+            onTogglePin={handleTogglePin}
+            onToggleMute={handleToggleMute}
+            onToggleArchive={handleToggleArchive}
+            onToggleFavorite={handleToggleFavorite}
+            onToggleUnread={handleToggleUnread}
+            onClearChat={(c) => handleClearChat(c.id)}
+            onDeleteChat={(c) => handleDeleteChat(c.id)}
+            onToggleBlock={handleToggleBlock}
+            filterTab="favorites"
+            onFilterChange={setFilterTab}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            isLoading={isLoadingList}
+            activeView="chats"
+          />
+        )}
       </div>
 
-      {/* Panel 3: Active Chat Window */}
+      {/* 3rd Pane: Main Pane (Open Conversation / Calls / Status / Communities Empty States) */}
       <div
         className={cn(
           'flex-1 h-full min-w-0',
-          // On mobile, hide chat window when no conversation is selected
-          !activeConversationId ? 'hidden md:flex' : 'flex'
+          // Responsive: Below 900px, hide main pane when no conversation is active
+          !activeConversationId && activeSection === 'chats' ? 'hidden md:flex' : 'flex'
         )}
       >
-        <ChatArea
-          conversation={activeConversation}
-          messages={messages}
-          onSendMessage={handleSendMessage}
-          onRetryMessage={handleRetryMessage}
-          onStartTyping={handleStartTyping}
-          onStopTyping={handleStopTyping}
-          onBack={() => {
-            setActiveConversationId(null);
-            navigate('/chat');
-          }}
-          onNewChat={() => navigate('/contacts')}
-          onTogglePin={handleTogglePin}
-          onToggleMute={handleToggleMute}
-          onToggleArchive={handleToggleArchive}
-          onToggleFavorite={handleToggleFavorite}
-          onToggleUnread={handleToggleUnread}
-          onClearChat={handleClearChat}
-          onDeleteChat={handleDeleteChat}
-          onToggleBlock={handleToggleBlock}
-          isTyping={isTyping}
-          typingUserName={typingUserName}
-        />
+        {activeSection === 'chats' || activeSection === 'archived' || activeSection === 'starred' ? (
+          activeConversation ? (
+            <ChatArea
+              conversation={activeConversation}
+              messages={messages}
+              onSendMessage={handleSendMessage}
+              onRetryMessage={handleRetryMessage}
+              onStartTyping={handleStartTyping}
+              onStopTyping={handleStopTyping}
+              onBack={() => {
+                setActiveConversationId(null);
+                navigate('/chat');
+              }}
+              onNewChat={() => navigate('/contacts')}
+              onTogglePin={handleTogglePin}
+              onToggleMute={handleToggleMute}
+              onToggleArchive={handleToggleArchive}
+              onToggleFavorite={handleToggleFavorite}
+              onToggleUnread={handleToggleUnread}
+              onClearChat={handleClearChat}
+              onDeleteChat={handleDeleteChat}
+              onToggleBlock={handleToggleBlock}
+              isTyping={isTyping}
+              typingUserName={typingUserName}
+            />
+          ) : (
+            <ChatEmptyState onNewChat={() => navigate('/contacts')} />
+          )
+        ) : activeSection === 'calls' ? (
+          <CallsEmptyState />
+        ) : activeSection === 'status' ? (
+          <StatusEmptyState />
+        ) : activeSection === 'communities' ? (
+          <CommunitiesEmptyState />
+        ) : (
+          <ChatEmptyState onNewChat={() => navigate('/contacts')} />
+        )}
       </div>
     </div>
   );

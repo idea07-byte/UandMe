@@ -82,17 +82,24 @@ export const ChatHeader = ({
   };
 
   return (
-    <div className="flex flex-col border-b border-charcoal-200 dark:border-charcoal-800 bg-white/95 dark:bg-charcoal-900/95 backdrop-blur-md sticky top-0 z-20 transition-colors">
+    <div className="flex flex-col border-b border-[#222D34] dark:border-[#222D34] bg-[#F0F2F5] dark:bg-[#202C33] sticky top-0 z-20 select-none">
       {/* Top Header Bar */}
-      <div className="flex items-center justify-between px-4 sm:px-6 py-3">
+      <div className="flex items-center justify-between px-4 py-2.5 h-[60px]">
         {/* Left: Contact Info */}
-        <div className="flex items-center gap-3 min-w-0">
+        <div
+          className="flex items-center gap-3 min-w-0 cursor-pointer flex-1 mr-2"
+          onClick={onOpenInfo}
+          title="Click to view contact information"
+        >
           {/* Back button on mobile */}
           {onBack && (
             <button
               type="button"
-              onClick={onBack}
-              className="md:hidden p-2 -ml-2 rounded-xl text-charcoal-600 dark:text-charcoal-300 hover:bg-charcoal-100 dark:hover:bg-charcoal-800 transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                onBack();
+              }}
+              className="md:hidden p-1.5 -ml-1 rounded-full text-[#AEBAC1] hover:bg-[#374248] transition-colors"
               aria-label="Back to conversations"
             >
               <ArrowLeft className="w-5 h-5" />
@@ -100,46 +107,40 @@ export const ChatHeader = ({
           )}
 
           {/* Avatar with status indicator */}
-          <div
-            className="relative cursor-pointer shrink-0"
-            onClick={onOpenInfo}
-            title="View contact information"
-          >
+          <div className="relative shrink-0">
             <Avatar
               src={avatar}
               name={name}
               size="md"
+              className="w-10 h-10 ring-0"
             />
-            <div className="absolute -bottom-0.5 -right-0.5">
-              <OnlineIndicator status={status} size="sm" pulse={status === 'online'} />
-            </div>
+            {status === 'online' && !isGroup && (
+              <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-[#00A884] ring-2 ring-[#202C33]" />
+            )}
           </div>
 
           {/* Contact Name & Subtitle */}
-          <div className="min-w-0 cursor-pointer" onClick={onOpenInfo}>
+          <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
-              <h3 className="text-sm sm:text-base font-bold text-charcoal-900 dark:text-charcoal-100 truncate leading-tight">
+              <h3 className="text-[16px] font-medium text-[#111B21] dark:text-[#E9EDEF] truncate leading-tight">
                 {name}
               </h3>
               {isFavorite && <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400 shrink-0" />}
-              {pinned && <Pin className="w-3 h-3 text-primary-600 rotate-45 shrink-0" />}
-              {isMuted && <BellOff className="w-3 h-3 text-charcoal-400 shrink-0" />}
+              {pinned && <Pin className="w-3.5 h-3.5 text-[#00A884] rotate-45 shrink-0" />}
+              {isMuted && <BellOff className="w-3.5 h-3.5 text-[#8696A0] shrink-0" />}
               {isBlocked && (
-                <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-rose-100 dark:bg-rose-950/80 text-rose-600 dark:text-rose-400 flex items-center gap-0.5">
+                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-rose-950/80 text-rose-400 flex items-center gap-0.5">
                   <Ban className="w-2.5 h-2.5" /> Blocked
                 </span>
               )}
             </div>
-            <p className="text-xs text-charcoal-500 dark:text-charcoal-400 capitalize flex items-center gap-1.5 mt-0.5 truncate">
+            <p className="text-[13px] text-[#667781] dark:text-[#8696A0] truncate leading-none mt-1">
               {isGroup ? (
-                <span>Group • {memberCount || 5} members</span>
+                <span>{memberCount || 5} members</span>
               ) : status === 'online' ? (
-                <>
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-                  <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Online</span>
-                </>
+                <span className="text-[#00A884] font-medium">online</span>
               ) : (
-                <span>{lastSeen || 'Offline'}</span>
+                <span>{lastSeen ? `last seen ${lastSeen}` : 'offline'}</span>
               )}
             </p>
           </div>
@@ -148,43 +149,42 @@ export const ChatHeader = ({
         {/* Right: Actions */}
         <div className="flex items-center gap-1 sm:gap-2">
           {/* Socket Connection Status Badge */}
-          <ConnectionStatusBadge size="sm" className="hidden sm:inline-flex mr-1" />
+          <ConnectionStatusBadge size="sm" className="hidden lg:inline-flex mr-1" />
 
           {/* In-chat search button */}
           <button
             type="button"
             onClick={() => setShowSearch((prev) => !prev)}
             className={cn(
-              'p-2 sm:p-2.5 rounded-xl transition-colors',
-              showSearch
-                ? 'bg-primary-50 text-primary-600 dark:bg-charcoal-800 dark:text-primary-400'
-                : 'text-charcoal-600 dark:text-charcoal-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-charcoal-100 dark:hover:bg-charcoal-800'
+              'p-2 rounded-full transition-colors text-[#54656F] dark:text-[#AEBAC1] hover:text-[#111B21] dark:hover:text-[#E9EDEF]',
+              showSearch ? 'bg-[#E9EDEF] dark:bg-[#374248] text-[#00A884]' : 'hover:bg-[#E9EDEF] dark:hover:bg-[#374248]'
             )}
             title="Search in conversation"
             aria-label="Search in conversation"
           >
-            <Search className="w-4 h-4 sm:w-5 sm:h-5" />
+            <Search className="w-5 h-5" />
           </button>
 
-          {/* Call actions */}
-          <button
-            type="button"
-            onClick={handleVoiceCall}
-            className="p-2 sm:p-2.5 rounded-xl text-charcoal-600 dark:text-charcoal-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-charcoal-100 dark:hover:bg-charcoal-800 transition-colors"
-            title="Voice call"
-            aria-label="Voice call"
-          >
-            <Phone className="w-4 h-4 sm:w-5 sm:h-5" />
-          </button>
-
+          {/* Video call */}
           <button
             type="button"
             onClick={handleVideoCall}
-            className="p-2 sm:p-2.5 rounded-xl text-charcoal-600 dark:text-charcoal-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-charcoal-100 dark:hover:bg-charcoal-800 transition-colors"
+            className="p-2 rounded-full text-[#54656F] dark:text-[#AEBAC1] hover:text-[#111B21] dark:hover:text-[#E9EDEF] hover:bg-[#E9EDEF] dark:hover:bg-[#374248] transition-colors"
             title="Video call"
             aria-label="Video call"
           >
-            <Video className="w-4 h-4 sm:w-5 sm:h-5" />
+            <Video className="w-5 h-5" />
+          </button>
+
+          {/* Voice call */}
+          <button
+            type="button"
+            onClick={handleVoiceCall}
+            className="p-2 rounded-full text-[#54656F] dark:text-[#AEBAC1] hover:text-[#111B21] dark:hover:text-[#E9EDEF] hover:bg-[#E9EDEF] dark:hover:bg-[#374248] transition-colors"
+            title="Voice call"
+            aria-label="Voice call"
+          >
+            <Phone className="w-5 h-5" />
           </button>
 
           {/* More options dropdown menu */}
@@ -192,15 +192,18 @@ export const ChatHeader = ({
             <button
               type="button"
               onClick={() => setShowMenu((prev) => !prev)}
-              className="p-2 sm:p-2.5 rounded-xl text-charcoal-600 dark:text-charcoal-300 hover:text-charcoal-900 dark:hover:text-charcoal-100 hover:bg-charcoal-100 dark:hover:bg-charcoal-800 transition-colors"
-              title="More options"
-              aria-label="More options"
+              className={cn(
+                'p-2 rounded-full text-[#54656F] dark:text-[#AEBAC1] hover:text-[#111B21] dark:hover:text-[#E9EDEF] hover:bg-[#E9EDEF] dark:hover:bg-[#374248] transition-colors',
+                showMenu && 'bg-[#E9EDEF] dark:bg-[#374248]'
+              )}
+              title="Menu"
+              aria-label="Menu"
             >
-              <MoreVertical className="w-4 h-4 sm:w-5 sm:h-5" />
+              <MoreVertical className="w-5 h-5" />
             </button>
 
             {showMenu && (
-              <div className="absolute right-0 top-full mt-2 w-56 p-1.5 rounded-2xl bg-white dark:bg-charcoal-900 border border-charcoal-200 dark:border-charcoal-800 shadow-soft-lg animate-scale-in z-30 space-y-0.5 text-xs text-charcoal-700 dark:text-charcoal-300">
+              <div className="absolute right-0 top-full mt-2 w-56 py-2 rounded-md bg-white dark:bg-[#233138] border border-[#E9EDEF] dark:border-[#2A3942] shadow-2xl z-30 space-y-0.5 text-[14px] text-[#3B4A54] dark:text-[#D1D7DB] animate-in fade-in zoom-in-95 duration-100">
                 {/* Contact Information */}
                 <button
                   type="button"
@@ -208,40 +211,9 @@ export const ChatHeader = ({
                     setShowMenu(false);
                     onOpenInfo?.();
                   }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-charcoal-100 dark:hover:bg-charcoal-800 transition-colors"
+                  className="w-full text-left px-4 py-2.5 hover:bg-[#F5F6F6] dark:hover:bg-[#182229] transition-colors flex items-center justify-between"
                 >
-                  <UserCheck className="w-4 h-4 text-primary-600" />
-                  <span>Contact Information</span>
-                </button>
-
-                {/* Pin / Unpin Conversation */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowMenu(false);
-                    onTogglePin?.(id);
-                  }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-charcoal-100 dark:hover:bg-charcoal-800 transition-colors"
-                >
-                  <Pin className={cn('w-4 h-4', pinned ? 'rotate-45 text-primary-600' : 'text-charcoal-400')} />
-                  <span>{pinned ? 'Unpin Conversation' : 'Pin Conversation'}</span>
-                </button>
-
-                {/* Mute / Unmute Notifications */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowMenu(false);
-                    onToggleMute?.(id);
-                  }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-charcoal-100 dark:hover:bg-charcoal-800 transition-colors"
-                >
-                  {isMuted ? (
-                    <Bell className="w-4 h-4 text-emerald-600" />
-                  ) : (
-                    <BellOff className="w-4 h-4 text-charcoal-400" />
-                  )}
-                  <span>{isMuted ? 'Unmute Notifications' : 'Mute Notifications'}</span>
+                  <span>Contact info</span>
                 </button>
 
                 {/* Mark as Unread */}
@@ -251,23 +223,33 @@ export const ChatHeader = ({
                     setShowMenu(false);
                     onToggleUnread?.(id);
                   }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-charcoal-100 dark:hover:bg-charcoal-800 transition-colors"
+                  className="w-full text-left px-4 py-2.5 hover:bg-[#F5F6F6] dark:hover:bg-[#182229] transition-colors"
                 >
-                  <Mail className="w-4 h-4 text-primary-600" />
-                  <span>Mark as Unread</span>
+                  <span>Mark as unread</span>
                 </button>
 
-                {/* Add / Remove Favorite */}
+                {/* Pin / Unpin */}
                 <button
                   type="button"
                   onClick={() => {
                     setShowMenu(false);
-                    onToggleFavorite?.(id);
+                    onTogglePin?.(id);
                   }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-charcoal-100 dark:hover:bg-charcoal-800 transition-colors"
+                  className="w-full text-left px-4 py-2.5 hover:bg-[#F5F6F6] dark:hover:bg-[#182229] transition-colors"
                 >
-                  <Star className={cn('w-4 h-4', isFavorite ? 'text-amber-500 fill-amber-500' : 'text-charcoal-400')} />
-                  <span>{isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}</span>
+                  <span>{pinned ? 'Unpin chat' : 'Pin chat'}</span>
+                </button>
+
+                {/* Mute / Unmute */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMenu(false);
+                    onToggleMute?.(id);
+                  }}
+                  className="w-full text-left px-4 py-2.5 hover:bg-[#F5F6F6] dark:hover:bg-[#182229] transition-colors"
+                >
+                  <span>{isMuted ? 'Unmute notifications' : 'Mute notifications'}</span>
                 </button>
 
                 {/* Archive / Unarchive */}
@@ -277,51 +259,35 @@ export const ChatHeader = ({
                     setShowMenu(false);
                     onToggleArchive?.(id);
                   }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-charcoal-100 dark:hover:bg-charcoal-800 transition-colors"
+                  className="w-full text-left px-4 py-2.5 hover:bg-[#F5F6F6] dark:hover:bg-[#182229] transition-colors"
                 >
-                  <Archive className="w-4 h-4 text-sky-500" />
-                  <span>{isArchived ? 'Unarchive Chat' : 'Archive Chat'}</span>
+                  <span>{isArchived ? 'Unarchive chat' : 'Archive chat'}</span>
                 </button>
 
-                <div className="border-t border-charcoal-100 dark:border-charcoal-800 my-1" />
+                <div className="border-t border-[#E9EDEF] dark:border-[#2A3942] my-1" />
 
-                {/* Clear Conversation History */}
+                {/* Clear chat */}
                 <button
                   type="button"
                   onClick={() => {
                     setShowMenu(false);
                     onClearChat?.(conversation);
                   }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-charcoal-100 dark:hover:bg-charcoal-800 text-amber-600 dark:text-amber-400 transition-colors"
+                  className="w-full text-left px-4 py-2.5 hover:bg-[#F5F6F6] dark:hover:bg-[#182229] text-amber-500 transition-colors"
                 >
-                  <Eraser className="w-4 h-4" />
-                  <span>Clear Conversation...</span>
+                  <span>Clear messages</span>
                 </button>
 
-                {/* Delete Conversation */}
+                {/* Delete chat */}
                 <button
                   type="button"
                   onClick={() => {
                     setShowMenu(false);
                     onDeleteChat?.(conversation);
                   }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/30 text-rose-600 dark:text-rose-400 transition-colors font-medium"
+                  className="w-full text-left px-4 py-2.5 hover:bg-[#F5F6F6] dark:hover:bg-[#182229] text-rose-500 transition-colors"
                 >
-                  <Trash2 className="w-4 h-4" />
-                  <span>Delete Conversation...</span>
-                </button>
-
-                {/* Block Contact */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowMenu(false);
-                    onToggleBlock?.(conversation);
-                  }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/30 text-rose-600 dark:text-rose-400 transition-colors font-medium"
-                >
-                  <Ban className="w-4 h-4" />
-                  <span>{isBlocked ? 'Unblock Contact...' : 'Block Contact...'}</span>
+                  <span>Delete chat</span>
                 </button>
               </div>
             )}
@@ -331,21 +297,21 @@ export const ChatHeader = ({
 
       {/* In-Chat Search Bar (collapsible) */}
       {showSearch && (
-        <div className="px-4 sm:px-6 py-2.5 bg-charcoal-50/90 dark:bg-charcoal-800/80 border-t border-charcoal-200/60 dark:border-charcoal-700/60 flex items-center gap-2 animate-slide-down">
-          <Search className="w-4 h-4 text-charcoal-400 shrink-0" />
+        <div className="px-4 py-2 bg-[#F0F2F5] dark:bg-[#111B21] border-t border-[#E9EDEF] dark:border-[#222D34] flex items-center gap-3">
+          <Search className="w-4 h-4 text-[#8696A0] shrink-0" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search messages in this conversation..."
+            placeholder="Search messages..."
             autoFocus
-            className="flex-1 bg-transparent text-xs text-charcoal-900 dark:text-white placeholder:text-charcoal-400 outline-none"
+            className="flex-1 bg-transparent text-sm text-[#111B21] dark:text-[#E9EDEF] placeholder:text-[#8696A0] outline-none"
           />
           {searchQuery && (
             <button
               type="button"
               onClick={() => onSearchChange('')}
-              className="text-xs text-charcoal-400 hover:text-charcoal-700 dark:hover:text-charcoal-200"
+              className="text-xs text-[#8696A0] hover:text-[#E9EDEF]"
             >
               Clear
             </button>
@@ -356,7 +322,7 @@ export const ChatHeader = ({
               setShowSearch(false);
               onCloseSearch?.();
             }}
-            className="p-1 rounded-lg text-charcoal-400 hover:text-charcoal-700 dark:hover:text-charcoal-200"
+            className="p-1 rounded-full text-[#8696A0] hover:text-[#E9EDEF]"
             aria-label="Close in-chat search"
           >
             <X className="w-4 h-4" />

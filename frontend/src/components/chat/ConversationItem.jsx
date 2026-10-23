@@ -76,32 +76,28 @@ export const ConversationItem = ({
         }
       }}
       className={cn(
-        'w-full flex items-center gap-3.5 p-3 rounded-2xl text-left transition-standard select-none group relative border cursor-pointer',
+        'w-full h-[72px] flex items-center gap-3.5 px-4 text-left select-none group relative cursor-pointer border-b border-[#222D34] transition-colors',
         isActive
-          ? 'bg-primary-50/80 dark:bg-charcoal-800/90 border-primary-200 dark:border-primary-900/60 shadow-soft-sm'
-          : 'hover:bg-charcoal-100/70 dark:hover:bg-charcoal-800/50 border-transparent'
+          ? 'bg-[#2A3942]'
+          : 'bg-[#111B21] hover:bg-[#202C33]'
       )}
     >
       {/* Avatar with Online Presence Badge */}
       <div className="relative shrink-0">
         <Avatar src={avatar} name={name} size="md" />
-        <div className="absolute -bottom-0.5 -right-0.5">
-          <OnlineIndicator status={status} size="sm" pulse={status === 'online'} />
-        </div>
+        {status === 'online' && (
+          <div className="absolute -bottom-0.5 -right-0.5">
+            <OnlineIndicator status={status} size="sm" pulse={false} />
+          </div>
+        )}
       </div>
 
       {/* Center Details */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between gap-1.5 mb-1">
+      <div className="flex-1 min-w-0 flex flex-col justify-center h-full">
+        {/* Top row: Name & Timestamp */}
+        <div className="flex items-center justify-between gap-1.5">
           <div className="flex items-center gap-1.5 min-w-0">
-            <h4
-              className={cn(
-                'text-sm font-semibold truncate leading-tight',
-                isActive
-                  ? 'text-primary-950 dark:text-primary-100'
-                  : 'text-charcoal-900 dark:text-charcoal-100'
-              )}
-            >
+            <h4 className="text-[15px] font-semibold text-[#E9EDEF] truncate leading-tight">
               {name}
             </h4>
 
@@ -110,7 +106,7 @@ export const ConversationItem = ({
             )}
 
             {isBlocked && (
-              <span className="text-[9px] font-bold px-1 rounded bg-rose-100 dark:bg-rose-950/80 text-rose-600 dark:text-rose-400 flex items-center gap-0.5">
+              <span className="text-[9px] font-bold px-1 rounded bg-rose-950 text-rose-400 flex items-center gap-0.5">
                 <Ban className="w-2.5 h-2.5" /> Blocked
               </span>
             )}
@@ -120,10 +116,8 @@ export const ConversationItem = ({
           {lastMessage?.timestamp && (
             <span
               className={cn(
-                'text-[11px] shrink-0 font-medium',
-                unreadCount > 0
-                  ? 'text-primary-600 dark:text-primary-400 font-bold'
-                  : 'text-charcoal-400 dark:text-charcoal-500'
+                'text-[12px] shrink-0 font-normal',
+                unreadCount > 0 ? 'text-[#00A884] font-medium' : 'text-[#8696A0]'
               )}
             >
               {formatListTime(lastMessage.timestamp)}
@@ -131,24 +125,17 @@ export const ConversationItem = ({
           )}
         </div>
 
-        {/* Last Message Preview & Indicators */}
-        <div className="flex items-center justify-between gap-2">
-          <p
-            className={cn(
-              'text-xs truncate flex items-center gap-1 min-w-0',
-              unreadCount > 0
-                ? 'font-medium text-charcoal-900 dark:text-charcoal-200'
-                : 'text-charcoal-500 dark:text-charcoal-400'
-            )}
-          >
+        {/* Bottom row: Last Message Preview & Badges */}
+        <div className="flex items-center justify-between gap-2 mt-1">
+          <p className="text-[13px] text-[#8696A0] truncate flex items-center gap-1 min-w-0">
             {isOutgoing && (
-              <span className="shrink-0 text-charcoal-400 dark:text-charcoal-500">
+              <span className="shrink-0">
                 {lastMessage.status === 'read' ? (
-                  <CheckCheck className="w-3.5 h-3.5 text-primary-500" />
+                  <CheckCheck className="w-4 h-4 text-[#53BDEB]" />
                 ) : lastMessage.status === 'delivered' ? (
-                  <CheckCheck className="w-3.5 h-3.5" />
+                  <CheckCheck className="w-4 h-4 text-[#8696A0]" />
                 ) : (
-                  <Check className="w-3.5 h-3.5" />
+                  <Check className="w-4 h-4 text-[#8696A0]" />
                 )}
               </span>
             )}
@@ -158,20 +145,20 @@ export const ConversationItem = ({
           {/* Badges: Muted, Pinned, Unread Count & Options Trigger */}
           <div className="flex items-center gap-1.5 shrink-0">
             {isMuted && (
-              <BellOff className="w-3.5 h-3.5 text-charcoal-400 dark:text-charcoal-500 shrink-0" title="Notifications muted" />
+              <BellOff className="w-3.5 h-3.5 text-[#8696A0] shrink-0" title="Notifications muted" />
             )}
 
             {pinned && (
-              <Pin className="w-3.5 h-3.5 text-charcoal-400 dark:text-charcoal-500 rotate-45 shrink-0" title="Pinned chat" />
+              <Pin className="w-3.5 h-3.5 text-[#8696A0] rotate-45 shrink-0" title="Pinned chat" />
             )}
 
             {unreadCount > 0 && (
-              <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-primary-600 text-white text-[10px] font-bold flex items-center justify-center shadow-soft">
+              <span className="min-w-[19px] h-[19px] px-1 rounded-full bg-[#00A884] text-[#111B21] text-[11px] font-bold flex items-center justify-center">
                 {unreadCount > 99 ? '99+' : unreadCount}
               </span>
             )}
 
-            {/* Quick 3-Dots Conversation Options Trigger */}
+            {/* Hover Dropdown Chevron Arrow for row actions */}
             <div className="relative" ref={menuRef}>
               <button
                 type="button"
@@ -179,11 +166,11 @@ export const ConversationItem = ({
                   e.stopPropagation();
                   setShowMenu((prev) => !prev);
                 }}
-                className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-1 rounded-lg text-charcoal-400 hover:text-charcoal-700 dark:hover:text-charcoal-200 hover:bg-charcoal-200/60 dark:hover:bg-charcoal-700/60 transition-opacity"
-                title="Conversation options"
-                aria-label="Conversation options"
+                className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-0.5 rounded text-[#8696A0] hover:text-[#E9EDEF] transition-opacity"
+                title="Chat options"
+                aria-label="Chat options"
               >
-                <MoreVertical className="w-3.5 h-3.5" />
+                <MoreVertical className="w-4 h-4" />
               </button>
 
               {/* Context Dropdown Menu */}

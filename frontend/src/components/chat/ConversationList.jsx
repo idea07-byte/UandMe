@@ -59,71 +59,103 @@ export const ConversationList = ({
   return (
     <div
       className={cn(
-        'w-full md:w-80 lg:w-96 flex flex-col h-full bg-white dark:bg-charcoal-900 border-r border-charcoal-200 dark:border-charcoal-800 shrink-0 transition-colors',
+        'w-full md:w-80 lg:w-96 flex flex-col h-full bg-[#111B21] border-r border-[#222D34] shrink-0 transition-colors',
         className
       )}
     >
       {/* Top Header */}
-      <div className="p-4 space-y-3 border-b border-charcoal-100 dark:border-charcoal-800/80 shrink-0">
-        <div className="flex items-center justify-between">
+      <div className="px-4 pt-3 pb-2 border-b border-[#222D34] shrink-0 bg-[#111B21]">
+        <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-black text-charcoal-900 dark:text-charcoal-100 tracking-tight">
+            <h2 className="text-xl font-bold text-[#E9EDEF] tracking-tight">
               {getHeaderTitle()}
             </h2>
-            {conversations.length > 0 && activeView === 'chats' && (
-              <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-charcoal-100 dark:bg-charcoal-800 text-charcoal-600 dark:text-charcoal-400">
-                {conversations.length}
-              </span>
-            )}
             <ConnectionStatusBadge size="sm" />
           </div>
 
-          <Button
-            size="sm"
-            variant="primary"
-            onClick={() => setIsNewChatModalOpen(true)}
-            leftIcon={<Plus className="w-4 h-4" />}
-          >
-            New Chat
-          </Button>
+          <div className="flex items-center gap-1">
+            {/* WhatsApp New Chat Button */}
+            <button
+              type="button"
+              onClick={() => setIsNewChatModalOpen(true)}
+              className="p-2 rounded-full text-[#8696A0] hover:text-[#00A884] hover:bg-[#202C33] transition-colors"
+              title="New chat"
+              aria-label="New chat"
+            >
+              <Plus className="w-5 h-5 stroke-[2.5]" />
+            </button>
+          </div>
         </div>
 
-        {/* Search Bar */}
-        <SearchInput
-          value={searchQuery}
-          onChange={(e) => onSearchChange(e.target.value)}
-          onClear={() => onSearchChange('')}
-          placeholder="Search chats, contacts, or messages..."
-        />
+        {/* WhatsApp Search Bar */}
+        <div className="flex items-center bg-[#202C33] rounded-lg px-3 py-1.5 focus-within:ring-1 focus-within:ring-[#00A884] mb-3">
+          <Search className="w-4 h-4 text-[#8696A0] mr-2 shrink-0" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+            placeholder="Search or start new chat"
+            className="w-full bg-transparent text-sm text-[#E9EDEF] placeholder-[#8696A0] focus:outline-none"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => onSearchChange('')}
+              className="text-[#8696A0] hover:text-[#E9EDEF] transition-colors"
+            >
+              <span className="text-xs">✕</span>
+            </button>
+          )}
+        </div>
 
-        {/* Filter Tabs (All, Unread, Favorites) */}
+        {/* WhatsApp Filter Chips: (All, Unread, Favourites, +) */}
         {activeView === 'chats' && (
-          <div className="flex items-center gap-1.5 pt-1">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
             {[
               { id: 'all', label: 'All' },
               { id: 'unread', label: 'Unread' },
-              { id: 'favorites', label: 'Favorites' },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => onFilterChange(tab.id)}
-                className={cn(
-                  'px-3 py-1 text-xs font-semibold rounded-xl transition-standard capitalize',
-                  filterTab === tab.id
-                    ? 'bg-primary-600 text-white shadow-soft-sm'
-                    : 'bg-charcoal-100 dark:bg-charcoal-800 text-charcoal-600 dark:text-charcoal-400 hover:text-charcoal-900 dark:hover:text-charcoal-200'
-                )}
-              >
-                {tab.label}
-              </button>
-            ))}
+              { id: 'favorites', label: 'Favourites' },
+            ].map((tab) => {
+              const isActive = filterTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => onFilterChange(tab.id)}
+                  className={cn(
+                    'px-3 py-1 rounded-full text-xs font-medium transition-colors shrink-0',
+                    isActive
+                      ? 'bg-[#005C4B] text-[#E9EDEF] border border-[#00A884]/40'
+                      : 'bg-[#202C33] text-[#8696A0] hover:bg-[#2A3942] hover:text-[#E9EDEF]'
+                  )}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+
+            {/* '+' button for adding custom filters */}
+            <button
+              type="button"
+              onClick={() => onFilterChange('favorites')}
+              className="p-1 rounded-full bg-[#202C33] text-[#8696A0] hover:text-[#E9EDEF] hover:bg-[#2A3942] transition-colors shrink-0"
+              title="Add filter"
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </button>
           </div>
         )}
       </div>
 
+      {/* WhatsApp Archived Notice Banner */}
+      {activeView === 'archived' && (
+        <div className="px-4 py-2.5 bg-[#182229] border-b border-[#222D34] text-xs text-[#8696A0] flex items-center justify-between">
+          <span>These chats stay archived when new messages are received. Tap to change in settings.</span>
+        </div>
+      )}
+
       {/* Conversations Stream */}
-      <div className="flex-1 overflow-y-auto p-2 space-y-1">
+      <div className="flex-1 overflow-y-auto">
         {isLoading ? (
           // Skeletons
           <>

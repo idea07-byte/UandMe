@@ -63,3 +63,55 @@
   transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
   transition-duration: 200ms;
 }
+
+/* WhatsApp Doodle Chat Wallpaper */
+.wa-chat-wallpaper {
+  background-color: #EFEAE2;
+  background-image: radial-gradient(#d4ccc3 1px, transparent 1px), radial-gradient(#d4ccc3 1px, #EFEAE2 1px);
+  background-size: 40px 40px;
+  background-position: 0 0, 20px 20px;
+}
+
+.dark .wa-chat-wallpaper {
+  background-color: #0B141A;
+  background-image: radial-gradient(#18242c 1.2px, transparent 1.2px), radial-gradient(#18242c 1.2px, #0B141A 1.2px);
+  background-size: 36px 36px;
+  background-position: 0 0, 18px 18px;
+}
+
+/* WhatsApp Message Bubble Tails */
+.wa-tail-out {
+  position: relative;
+  border-top-right-radius: 0 !important;
+}
+.wa-tail-out::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: -8px;
+  width: 0;
+  height: 0;
+  border-top: 8px solid #005C4B;
+  border-right: 8px solid transparent;
+}
+:not(.dark) .wa-tail-out::before {
+  border-top-color: #D9FDD3;
+}
+
+.wa-tail-in {
+  position: relative;
+  border-top-left-radius: 0 !important;
+}
+.wa-tail-in::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -8px;
+  width: 0;
+  height: 0;
+  border-top: 8px solid #202C33;
+  border-left: 8px solid transparent;
+}
+:not(.dark) .wa-tail-in::before {
+  border-top-color: #FFFFFF;
+}

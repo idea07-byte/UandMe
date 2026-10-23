@@ -3,12 +3,15 @@ import {
   Paperclip,
   Smile,
   Send,
+  Mic,
+  Camera,
   Image as ImageIcon,
   FileText,
-  Music,
+  User as UserIcon,
   BarChart2,
   X,
   AlertCircle,
+  CornerUpLeft,
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { EMOJI_CATEGORIES } from '../../services/mockChatData';
@@ -17,12 +20,23 @@ import useToast from '../../hooks/useToast';
 const MAX_CHAR_LIMIT = 2000;
 const WARN_CHAR_THRESHOLD = 1800;
 
+/**
+ * WhatsApp Desktop Style Message Composer.
+ * Spec Page 2 & 6:
+ * - Attach popup menu (photos, camera, document, contact, poll)
+ * - Emoji picker popover
+ * - "Type a message" input
+ * - Mic button that swaps to green send button when text is entered
+ * - Quoted reply preview banner
+ */
 export const MessageComposer = ({
   onSendMessage,
   onTypingStart,
   onTypingStop,
+  replyingTo = null,
+  onCancelReply,
   disabled = false,
-  placeholder = 'Type a message... (Enter to send, Shift+Enter for new line)',
+  placeholder = 'Type a message',
 }) => {
   const [text, setText] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -37,14 +51,15 @@ export const MessageComposer = ({
 
   const charCount = text.length;
   const isOverLimit = charCount > MAX_CHAR_LIMIT;
-  const canSend = (text.trim().length > 0 || selectedAttachments.length > 0) && !isOverLimit && !disabled && !isSending;
+  const hasText = text.trim().length > 0;
+  const canSend = (hasText || selectedAttachments.length > 0) && !isOverLimit && !disabled && !isSending;
 
   // Auto-resize textarea height
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
       const scrollHeight = textareaRef.current.scrollHeight;
-      textareaRef.current.style.height = `${Math.min(scrollHeight, 140)}px`;
+      textareaRef.current.style.height = `${Math.min(scrollHeight, 120)}px`;
     }
   }, [text]);
 
@@ -85,7 +100,7 @@ export const MessageComposer = ({
     const content = text.trim();
     const atts = [...selectedAttachments];
 
-    onSendMessage(content, atts);
+    onSendMessage(content, atts, replyingTo);
     onTypingStop?.();
 
     // Clear and restore
@@ -93,6 +108,7 @@ export const MessageComposer = ({
     setSelectedAttachments([]);
     setShowEmojiPicker(false);
     setShowAttachmentMenu(false);
+    onCancelReply?.();
 
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -112,7 +128,7 @@ export const MessageComposer = ({
   const handleAddAttachment = (type, name, size) => {
     setSelectedAttachments((prev) => [...prev, { type, name, size }]);
     setShowAttachmentMenu(false);
-    toast.info(`Added attachment: ${name}`);
+    toast.info(`Attached ${name}`);
     textareaRef.current?.focus();
   };
 
@@ -121,39 +137,59 @@ export const MessageComposer = ({
   };
 
   return (
-    <div className="relative p-3 sm:p-4 bg-white dark:bg-charcoal-900 border-t border-charcoal-200 dark:border-charcoal-800 transition-colors">
+    <div className="relative bg-[#202C33] border-t border-[#222D34] select-none z-10 transition-colors">
+      {/* Quoted Reply Banner */}
+      {replyingTo && (
+        <div className="flex items-center justify-between px-4 py-2 bg-[#182229] border-b border-[#222D34] animate-slide-down">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <CornerUpLeft className="w-4 h-4 text-[#00A884] shrink-0" />
+            <div className="border-l-2 border-[#00A884] pl-2 min-w-0">
+              <span className="text-xs font-bold text-[#00A884] block truncate">
+                Replying to {replyingTo.senderName || 'Contact'}
+              </span>
+              <p className="text-xs text-[#8696A0] truncate">{replyingTo.text || 'Attachment'}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onCancelReply}
+            className="p-1 rounded-full text-[#8696A0] hover:text-[#E9EDEF]"
+            title="Cancel reply"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Emoji Picker Popover */}
       {showEmojiPicker && (
         <div
           ref={emojiPickerRef}
-          className="absolute bottom-full mb-3 left-4 sm:left-6 z-30 w-80 sm:w-96 max-h-80 overflow-y-auto p-4 rounded-3xl bg-white dark:bg-charcoal-900 border border-charcoal-200 dark:border-charcoal-800 shadow-soft-lg animate-scale-in"
+          className="absolute bottom-full mb-2 left-4 z-30 w-80 sm:w-96 max-h-80 overflow-y-auto p-4 rounded-2xl bg-[#202C33] border border-[#2A3942] shadow-2xl animate-scale-in"
         >
-          <div className="flex items-center justify-between pb-2 mb-3 border-b border-charcoal-100 dark:border-charcoal-800">
-            <h5 className="text-xs font-bold uppercase tracking-wider text-charcoal-700 dark:text-charcoal-300">
-              Select Emoji
+          <div className="flex items-center justify-between pb-2 mb-3 border-b border-[#2A3942]">
+            <h5 className="text-xs font-bold uppercase tracking-wider text-[#8696A0]">
+              Emoji
             </h5>
             <button
               onClick={() => setShowEmojiPicker(false)}
-              className="p-1 rounded-lg text-charcoal-400 hover:text-charcoal-600 dark:hover:text-charcoal-200"
-              aria-label="Close emoji picker"
+              className="p-1 rounded-lg text-[#8696A0] hover:text-[#E9EDEF]"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
 
-          <div className="space-y-3.5">
-            {EMOJI_CATEGORIES.map((category) => (
-              <div key={category.name}>
-                <p className="text-[11px] font-semibold text-charcoal-400 mb-1.5">
-                  {category.name}
-                </p>
+          <div className="space-y-4">
+            {EMOJI_CATEGORIES.map((cat, idx) => (
+              <div key={idx}>
+                <h6 className="text-[11px] font-semibold text-[#8696A0] mb-2">{cat.name}</h6>
                 <div className="grid grid-cols-8 gap-1.5 text-xl">
-                  {category.emojis.map((emoji) => (
+                  {cat.emojis.map((emoji, eIdx) => (
                     <button
-                      key={emoji}
+                      key={eIdx}
                       type="button"
                       onClick={() => handleInsertEmoji(emoji)}
-                      className="p-1.5 rounded-xl hover:bg-charcoal-100 dark:hover:bg-charcoal-800 hover:scale-125 transition-transform text-center"
+                      className="p-1.5 rounded-lg hover:bg-[#2A3942] hover:scale-125 transition-all text-center flex items-center justify-center cursor-pointer"
                     >
                       {emoji}
                     </button>
@@ -165,80 +201,96 @@ export const MessageComposer = ({
         </div>
       )}
 
-      {/* Attachment Menu Popover */}
+      {/* WhatsApp Desktop Attach Popup Menu */}
       {showAttachmentMenu && (
         <div
           ref={attachmentMenuRef}
-          className="absolute bottom-full mb-3 left-3 sm:left-4 z-30 w-56 p-2 rounded-2xl bg-white dark:bg-charcoal-900 border border-charcoal-200 dark:border-charcoal-800 shadow-soft-lg animate-slide-up space-y-1"
+          className="absolute bottom-full mb-3 left-4 z-30 w-52 p-2 rounded-2xl bg-[#233138] border border-[#2A3942] shadow-2xl space-y-1 animate-scale-in"
         >
           <button
             type="button"
-            onClick={() => handleAddAttachment('image', 'capstone_architecture_diagram.png', '1.8 MB')}
-            className="w-full flex items-center gap-3 p-2.5 rounded-xl text-left text-xs font-medium text-charcoal-800 dark:text-charcoal-200 hover:bg-primary-50 dark:hover:bg-charcoal-800 transition-colors"
+            onClick={() => handleAddAttachment('document', 'Report_2026.pdf', '1.4 MB')}
+            className="w-full flex items-center gap-3 p-2.5 rounded-xl text-left text-xs font-medium text-[#E9EDEF] hover:bg-[#111B21] transition-colors"
           >
-            <div className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-950 text-emerald-600 flex items-center justify-center">
-              <ImageIcon className="w-4 h-4" />
-            </div>
-            <span>Photos & Videos</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleAddAttachment('document', 'project_requirements_sprint1.pdf', '340 KB')}
-            className="w-full flex items-center gap-3 p-2.5 rounded-xl text-left text-xs font-medium text-charcoal-800 dark:text-charcoal-200 hover:bg-primary-50 dark:hover:bg-charcoal-800 transition-colors"
-          >
-            <div className="w-7 h-7 rounded-lg bg-sky-100 dark:bg-sky-950 text-sky-600 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-full bg-purple-600/30 text-purple-400 flex items-center justify-center">
               <FileText className="w-4 h-4" />
             </div>
-            <span>Document / PDF</span>
+            <span>Document</span>
           </button>
 
           <button
             type="button"
-            onClick={() => handleAddAttachment('audio', 'voice_memo_meeting_notes.mp3', '4.2 MB')}
-            className="w-full flex items-center gap-3 p-2.5 rounded-xl text-left text-xs font-medium text-charcoal-800 dark:text-charcoal-200 hover:bg-primary-50 dark:hover:bg-charcoal-800 transition-colors"
+            onClick={() => handleAddAttachment('image', 'Campus_Photo.png', '2.8 MB')}
+            className="w-full flex items-center gap-3 p-2.5 rounded-xl text-left text-xs font-medium text-[#E9EDEF] hover:bg-[#111B21] transition-colors"
           >
-            <div className="w-7 h-7 rounded-lg bg-amber-100 dark:bg-amber-950 text-amber-600 flex items-center justify-center">
-              <Music className="w-4 h-4" />
+            <div className="w-8 h-8 rounded-full bg-blue-600/30 text-blue-400 flex items-center justify-center">
+              <ImageIcon className="w-4 h-4" />
             </div>
-            <span>Audio Recording</span>
+            <span>Photos & videos</span>
           </button>
 
           <button
             type="button"
             onClick={() => {
               setShowAttachmentMenu(false);
-              toast.info('Team Poll creation will connect to the backend survey API in Phase 4!');
+              toast.info('Camera snapshot trigger');
             }}
-            className="w-full flex items-center gap-3 p-2.5 rounded-xl text-left text-xs font-medium text-charcoal-800 dark:text-charcoal-200 hover:bg-primary-50 dark:hover:bg-charcoal-800 transition-colors"
+            className="w-full flex items-center gap-3 p-2.5 rounded-xl text-left text-xs font-medium text-[#E9EDEF] hover:bg-[#111B21] transition-colors"
           >
-            <div className="w-7 h-7 rounded-lg bg-purple-100 dark:bg-purple-950 text-purple-600 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-full bg-rose-600/30 text-rose-400 flex items-center justify-center">
+              <Camera className="w-4 h-4" />
+            </div>
+            <span>Camera</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setShowAttachmentMenu(false);
+              toast.info('Share contact card from campus directory');
+            }}
+            className="w-full flex items-center gap-3 p-2.5 rounded-xl text-left text-xs font-medium text-[#E9EDEF] hover:bg-[#111B21] transition-colors"
+          >
+            <div className="w-8 h-8 rounded-full bg-sky-600/30 text-sky-400 flex items-center justify-center">
+              <UserIcon className="w-4 h-4" />
+            </div>
+            <span>Contact</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setShowAttachmentMenu(false);
+              toast.info('Poll creation modal opened');
+            }}
+            className="w-full flex items-center gap-3 p-2.5 rounded-xl text-left text-xs font-medium text-[#E9EDEF] hover:bg-[#111B21] transition-colors"
+          >
+            <div className="w-8 h-8 rounded-full bg-amber-600/30 text-amber-400 flex items-center justify-center">
               <BarChart2 className="w-4 h-4" />
             </div>
-            <span>Create Poll</span>
+            <span>Poll</span>
           </button>
         </div>
       )}
 
       {/* Selected Attachments Preview Bar */}
       {selectedAttachments.length > 0 && (
-        <div className="flex items-center gap-2 mb-2.5 overflow-x-auto pb-1 max-w-5xl mx-auto">
+        <div className="flex items-center gap-2 px-4 pt-2.5 pb-1 overflow-x-auto">
           {selectedAttachments.map((att, index) => (
             <div
               key={index}
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-charcoal-100 dark:bg-charcoal-800 text-xs text-charcoal-800 dark:text-charcoal-200 border border-charcoal-200 dark:border-charcoal-700 shrink-0"
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#2A3942] text-xs text-[#E9EDEF] border border-[#222D34] shrink-0"
             >
               {att.type === 'image' ? (
-                <ImageIcon className="w-3.5 h-3.5 text-emerald-500" />
+                <ImageIcon className="w-3.5 h-3.5 text-[#00A884]" />
               ) : (
-                <FileText className="w-3.5 h-3.5 text-sky-500" />
+                <FileText className="w-3.5 h-3.5 text-sky-400" />
               )}
               <span className="truncate max-w-[180px] font-medium">{att.name}</span>
               <button
                 type="button"
                 onClick={() => handleRemoveAttachment(index)}
-                className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 text-charcoal-400 hover:text-rose-500"
-                aria-label="Remove attachment"
+                className="p-0.5 rounded text-[#8696A0] hover:text-rose-400"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -247,9 +299,26 @@ export const MessageComposer = ({
         </div>
       )}
 
-      {/* Composer Input Bar */}
-      <div className="flex items-end gap-2 max-w-5xl mx-auto">
-        {/* Attachment Trigger */}
+      {/* Main Composer Bar (Emoji, Attach, Input, Mic/Send) */}
+      <div className="flex items-center gap-2 px-3 sm:px-4 py-2.5">
+        {/* Emoji Button */}
+        <button
+          type="button"
+          data-emoji-trigger
+          onClick={() => {
+            setShowEmojiPicker((prev) => !prev);
+            setShowAttachmentMenu(false);
+          }}
+          className={cn(
+            'p-2 rounded-full text-[#8696A0] hover:text-[#E9EDEF] transition-colors shrink-0',
+            showEmojiPicker && 'text-[#00A884]'
+          )}
+          title="Emoji"
+        >
+          <Smile className="w-6 h-6" />
+        </button>
+
+        {/* Attachment Button */}
         <button
           type="button"
           data-attachment-trigger
@@ -258,17 +327,16 @@ export const MessageComposer = ({
             setShowEmojiPicker(false);
           }}
           className={cn(
-            'p-2.5 rounded-xl text-charcoal-500 hover:text-charcoal-700 dark:text-charcoal-400 dark:hover:text-charcoal-200 hover:bg-charcoal-100 dark:hover:bg-charcoal-800 transition-colors shrink-0 mb-0.5',
-            showAttachmentMenu && 'bg-primary-50 text-primary-600 dark:bg-charcoal-800 dark:text-primary-400'
+            'p-2 rounded-full text-[#8696A0] hover:text-[#E9EDEF] transition-colors shrink-0',
+            showAttachmentMenu && 'text-[#00A884]'
           )}
-          title="Add attachment"
-          aria-label="Add attachment"
+          title="Attach"
         >
-          <Paperclip className="w-5 h-5" />
+          <Paperclip className="w-6 h-6 rotate-45" />
         </button>
 
-        {/* Text Input Container */}
-        <div className="flex-1 relative flex flex-col bg-charcoal-100/90 dark:bg-charcoal-800/80 rounded-2xl border border-charcoal-200/60 dark:border-charcoal-700/60 focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500/20 transition-all">
+        {/* Text Input */}
+        <div className="flex-1 relative flex items-center bg-[#2A3942] rounded-lg px-4 py-2">
           <textarea
             ref={textareaRef}
             rows={1}
@@ -285,62 +353,31 @@ export const MessageComposer = ({
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
             disabled={disabled}
-            className="w-full text-sm bg-transparent outline-none py-3 pl-4 pr-11 text-charcoal-900 dark:text-charcoal-100 placeholder:text-charcoal-400 dark:placeholder:text-charcoal-500 resize-none max-h-36"
+            className="w-full text-[14.5px] bg-transparent outline-none text-[#E9EDEF] placeholder-[#8696A0] resize-none max-h-28 leading-5"
           />
-
-          {/* Emoji Trigger */}
-          <button
-            type="button"
-            data-emoji-trigger
-            onClick={() => {
-              setShowEmojiPicker((prev) => !prev);
-              setShowAttachmentMenu(false);
-            }}
-            className={cn(
-              'absolute right-2.5 top-2.5 p-1.5 rounded-xl text-charcoal-400 hover:text-charcoal-600 dark:hover:text-charcoal-200 transition-colors',
-              showEmojiPicker && 'text-primary-600 dark:text-primary-400'
-            )}
-            title="Emoji picker"
-            aria-label="Emoji picker"
-          >
-            <Smile className="w-5 h-5" />
-          </button>
-
-          {/* Character counter warning (visible when nearing limit) */}
-          {charCount >= WARN_CHAR_THRESHOLD && (
-            <div className="px-4 pb-1.5 flex items-center justify-between text-[10px]">
-              <span
-                className={cn(
-                  'font-medium flex items-center gap-1',
-                  isOverLimit ? 'text-rose-600 font-bold' : 'text-amber-500'
-                )}
-              >
-                <AlertCircle className="w-3 h-3" />
-                {isOverLimit ? 'Character limit exceeded' : 'Approaching character limit'}
-              </span>
-              <span className={isOverLimit ? 'text-rose-600 font-bold' : 'text-charcoal-400'}>
-                {charCount} / {MAX_CHAR_LIMIT}
-              </span>
-            </div>
-          )}
         </div>
 
-        {/* Send Button */}
-        <button
-          type="button"
-          onClick={handleSend}
-          disabled={!canSend}
-          className={cn(
-            'p-3 rounded-2xl transition-all duration-200 shrink-0 mb-0.5 shadow-soft flex items-center justify-center',
-            canSend
-              ? 'bg-primary-600 hover:bg-primary-700 active:scale-95 text-white hover:shadow-emerald-glow/40 cursor-pointer'
-              : 'bg-charcoal-200 dark:bg-charcoal-800 text-charcoal-400 dark:text-charcoal-600 cursor-not-allowed shadow-none'
-          )}
-          title="Send Message (Enter)"
-          aria-label="Send Message"
-        >
-          <Send className={cn('w-4 h-4', canSend && 'transform -rotate-12')} />
-        </button>
+        {/* Dynamic Mic / Send Button */}
+        {hasText || selectedAttachments.length > 0 ? (
+          <button
+            type="button"
+            onClick={handleSend}
+            disabled={!canSend}
+            className="w-10 h-10 rounded-full bg-[#00A884] hover:bg-[#008f6f] active:scale-95 text-[#111B21] flex items-center justify-center shrink-0 transition-transform shadow-md"
+            title="Send (Enter)"
+          >
+            <Send className="w-5 h-5 fill-current ml-0.5" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => toast.info('Voice message: hold to record voice note.')}
+            className="w-10 h-10 rounded-full text-[#8696A0] hover:text-[#E9EDEF] hover:bg-[#2A3942] flex items-center justify-center shrink-0 transition-colors"
+            title="Voice message"
+          >
+            <Mic className="w-5 h-5" />
+          </button>
+        )}
       </div>
     </div>
   );
