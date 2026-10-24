@@ -40,6 +40,8 @@ export const WhatsAppContactInfoPanel = ({
   onToggleBlock,
   isMuted = false,
   isBlocked = false,
+  onStartVoiceCall,
+  onStartVideoCall,
 }) => {
   const toast = useToast();
   const [activeMediaTab, setActiveMediaTab] = useState('media');
@@ -107,7 +109,7 @@ export const WhatsAppContactInfoPanel = ({
         <div className="flex items-center justify-center gap-6 mt-6 w-full">
           <button
             type="button"
-            onClick={() => toast.info(`Starting voice call with ${name}...`)}
+            onClick={() => onStartVoiceCall ? onStartVoiceCall(target) : toast.info(`Starting voice call with ${name}...`)}
             className="flex flex-col items-center gap-1.5 group"
           >
             <div className="w-11 h-11 rounded-full bg-[#202C33] border border-[#2A3942] flex items-center justify-center text-[#00A884] group-hover:bg-[#00A884] group-hover:text-white transition-all shadow-sm">
@@ -118,7 +120,7 @@ export const WhatsAppContactInfoPanel = ({
 
           <button
             type="button"
-            onClick={() => toast.info(`Starting video call with ${name}...`)}
+            onClick={() => onStartVideoCall ? onStartVideoCall(target) : toast.info(`Starting video call with ${name}...`)}
             className="flex flex-col items-center gap-1.5 group"
           >
             <div className="w-11 h-11 rounded-full bg-[#202C33] border border-[#2A3942] flex items-center justify-center text-[#00A884] group-hover:bg-[#00A884] group-hover:text-white transition-all shadow-sm">

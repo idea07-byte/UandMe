@@ -28,6 +28,8 @@ export const ContactDetailsPanel = ({
   contact,
   onClose,
   onStartChat,
+  onStartVoiceCall,
+  onStartVideoCall,
   onToggleFavorite,
   onToggleBlock,
   className,
@@ -72,11 +74,19 @@ export const ContactDetailsPanel = ({
   } = contact;
 
   const handleVoiceCall = () => {
-    toast.info(`Voice call initiated with ${name}. WebRTC signaling connects in Phase 5.`, 'Voice Call');
+    if (onStartVoiceCall) {
+      onStartVoiceCall(contact);
+    } else {
+      toast.info(`Starting voice call with ${name}...`, 'Voice Call');
+    }
   };
 
   const handleVideoCall = () => {
-    toast.info(`Video call initiated with ${name}. WebRTC signaling connects in Phase 5.`, 'Video Call');
+    if (onStartVideoCall) {
+      onStartVideoCall(contact);
+    } else {
+      toast.info(`Starting video call with ${name}...`, 'Video Call');
+    }
   };
 
   const handleConfirmBlock = () => {
@@ -346,7 +356,7 @@ export const ContactDetailsPanel = ({
         confirmText={isBlocked ? 'Unblock Contact' : 'Block Contact'}
         variant={isBlocked ? 'primary' : 'danger'}
         icon={Ban}
-        note="This is a frontend demonstration state. Real-time blocking rules will be enforced via WebSocket gateway in Phase 5."
+        note="Blocked contacts will not be able to message or place calls to your account."
       />
     </div>
   );

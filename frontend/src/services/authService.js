@@ -49,19 +49,15 @@ export const authService = {
   async login({ email, password, rememberMe = false }) {
     try {
       const trimmedIdentifier = (email || '').trim();
-      // If user typed email format, extract username portion for backend compatibility
-      const username = trimmedIdentifier.includes('@')
-        ? trimmedIdentifier.split('@')[0]
-        : trimmedIdentifier;
 
       const response = await api.post('/auth/login', {
-        username,
+        email: trimmedIdentifier,
         password,
       });
 
-      // Backend returns: { _id, username, avatar, publicKey, token }
+      // Backend returns: { status: 'success', message: 'Logged in successfully', user, token }
       if (response && response.token) {
-        const user = normalizeUser(response);
+        const user = normalizeUser(response.user || response);
 
         // Securely store token and public profile (never store raw password)
         localStorage.setItem(TOKEN_KEY, response.token);
@@ -96,27 +92,22 @@ export const authService = {
       const rawName = (name || '').trim();
       const rawEmail = (email || '').trim();
 
-      // Normalize username for backend uniqueness requirement
-      let username = rawName ? rawName.replace(/\s+/g, '_').toLowerCase() : '';
-      if (!username && rawEmail) {
-        username = rawEmail.split('@')[0].toLowerCase();
-      }
-
       const response = await api.post('/auth/register', {
-        username,
+        name: rawName,
+        email: rawEmail,
         password,
-        publicKey: `pk_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       });
 
+      // Backend returns: { status: 'success', message: 'Account created successfully', user, token }
       if (response && response.token) {
-        const user = normalizeUser(response);
+        const user = normalizeUser(response.user || response);
         localStorage.setItem(TOKEN_KEY, response.token);
         localStorage.setItem(USER_KEY, JSON.stringify(user));
 
         return {
           user,
           token: response.token,
-          message: 'Account created successfully.',
+          message: response.message || 'Account created successfully.',
         };
       }
 
@@ -136,9 +127,23 @@ export const authService = {
    */
   async getUsers() {
     try {
-      const response = await api.get('/auth/users');
-      if (Array.isArray(response)) {
-        return response.map(normalizeUser);
+      let response;
+      try {
+        response = await api.get('/users');
+      } catch {
+        response = await api.get('/auth/users');
+      }
+
+      const list = Array.isArray(response)
+        ? response
+        : Array.isArray(response?.data?.users)
+        ? response.data.users
+        : Array.isArray(response?.users)
+        ? response.users
+        : [];
+
+      if (list.length > 0) {
+        return list.map(normalizeUser);
       }
       return [];
     } catch (error) {

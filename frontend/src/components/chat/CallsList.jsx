@@ -19,7 +19,7 @@ import { MOCK_CALLS } from '../../services/mockWhatsAppExtras';
 import useToast from '../../hooks/useToast';
 import { cn } from '../../utils/cn';
 
-export const CallsList = ({ onSelectCall, selectedCallId }) => {
+export const CallsList = ({ onSelectCall, selectedCallId, onStartCall }) => {
   const [search, setSearch] = useState('');
   const [calls, setCalls] = useState(MOCK_CALLS);
   const toast = useToast();
@@ -29,7 +29,11 @@ export const CallsList = ({ onSelectCall, selectedCallId }) => {
     : calls;
 
   const handleStartCall = (contact, type = 'voice') => {
-    toast.info(`Starting ${type} call with ${contact.name}...`, type === 'video' ? 'Video Call' : 'Voice Call');
+    if (onStartCall) {
+      onStartCall(contact, type);
+    } else {
+      toast.info(`Starting ${type} call with ${contact.name}...`, type === 'video' ? 'Video Call' : 'Voice Call');
+    }
   };
 
   return (

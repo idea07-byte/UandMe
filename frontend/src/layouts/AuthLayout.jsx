@@ -33,7 +33,7 @@ export const AuthLayout = () => {
         <div className="relative z-10 space-y-8 my-auto max-w-md">
           <div className="space-y-3">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-xl bg-primary-500/10 border border-primary-500/20 text-primary-300 text-xs font-bold uppercase tracking-wider">
-              Phase 2: Authentication UI
+              PulseChat Web
             </div>
             <h1 className="text-3xl font-extrabold tracking-tight leading-snug">
               Modern, secure real-time messaging built for students & teams.

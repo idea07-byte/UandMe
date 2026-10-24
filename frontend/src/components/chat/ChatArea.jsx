@@ -5,6 +5,7 @@ import MessageComposer from './MessageComposer';
 import ChatEmptyState from './ChatEmptyState';
 import ConfirmationModal from '../common/ConfirmationModal';
 import WhatsAppContactInfoPanel from './WhatsAppContactInfoPanel';
+import WhatsAppCallModal from './WhatsAppCallModal';
 import { Ban, Eraser, Trash2 } from 'lucide-react';
 import useToast from '../../hooks/useToast';
 
@@ -27,8 +28,11 @@ export const ChatArea = ({
   onToggleBlock,
   isTyping = false,
   typingUserName = '',
+  onStartVoiceCall,
+  onStartVideoCall,
 }) => {
   const [isContactInfoOpen, setIsContactInfoOpen] = useState(false);
+  const [activeCall, setActiveCall] = useState(null); // { type: 'voice' | 'video', contact }
   const [searchQuery, setSearchQuery] = useState('');
   const [replyingTo, setReplyingTo] = useState(null);
   const [localMessages, setLocalMessages] = useState([]);
@@ -100,6 +104,14 @@ export const ChatArea = ({
           onClearChat={() => setIsClearModalOpen(true)}
           onDeleteChat={() => setIsDeleteModalOpen(true)}
           onToggleBlock={() => setIsBlockModalOpen(true)}
+          onStartVoiceCall={(target) => {
+            if (onStartVoiceCall) onStartVoiceCall(target || conversation);
+            else setActiveCall({ type: 'voice', contact: target || conversation });
+          }}
+          onStartVideoCall={(target) => {
+            if (onStartVideoCall) onStartVideoCall(target || conversation);
+            else setActiveCall({ type: 'video', contact: target || conversation });
+          }}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           onCloseSearch={() => setSearchQuery('')}
@@ -162,8 +174,29 @@ export const ChatArea = ({
           onClose={() => setIsContactInfoOpen(false)}
           onToggleMute={onToggleMute}
           onToggleBlock={onToggleBlock}
+          onStartVoiceCall={(target) => {
+            if (onStartVoiceCall) onStartVoiceCall(target || conversation);
+            else setActiveCall({ type: 'voice', contact: target || conversation });
+          }}
+          onStartVideoCall={(target) => {
+            if (onStartVideoCall) onStartVideoCall(target || conversation);
+            else setActiveCall({ type: 'video', contact: target || conversation });
+          }}
           isMuted={conversation.isMuted}
           isBlocked={conversation.isBlocked}
+        />
+      )}
+
+      {/* Real-time WhatsApp Voice & Video Call Modal (fallback if not managed globally by parent) */}
+      {!onStartVoiceCall && activeCall && (
+        <WhatsAppCallModal
+          isOpen={Boolean(activeCall)}
+          callType={activeCall.type}
+          contact={activeCall.contact || conversation}
+          onEndCall={(duration) => {
+            setActiveCall(null);
+            toast.info(`Call ended (${duration}s)`, 'Call Summary');
+          }}
         />
       )}
 

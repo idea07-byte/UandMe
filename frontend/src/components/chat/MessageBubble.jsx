@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Check,
   CheckCheck,
@@ -15,12 +15,167 @@ import {
   Star,
   Trash2,
   Copy,
+  Play,
+  Pause,
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { formatMessageTime } from '../../utils/formatters';
 
 // Common emoji reactions
 const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
+
+/**
+ * WhatsApp Desktop Voice Note Audio Player
+ */
+const VoiceNotePlayer = ({ attachment, isOutgoing }) => {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [playbackProgress, setPlaybackProgress] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [playbackRate, setPlaybackRate] = useState(1);
+  const audioRef = useRef(null);
+  const intervalRef = useRef(null);
+
+  const duration = attachment.duration || 5;
+
+  const playSyntheticTone = () => {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtx) {
+        const ctx = new AudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(320, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(480, ctx.currentTime + 0.3);
+        gain.gain.setValueAtTime(0.08, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + duration);
+      }
+    } catch {}
+
+    const startTime = Date.now();
+    intervalRef.current = setInterval(() => {
+      const elapsed = ((Date.now() - startTime) / 1000) * playbackRate;
+      if (elapsed >= duration) {
+        clearInterval(intervalRef.current);
+        setIsPlaying(false);
+        setPlaybackProgress(0);
+        setCurrentTime(0);
+      } else {
+        setCurrentTime(elapsed);
+        setPlaybackProgress(elapsed / duration);
+      }
+    }, 100);
+  };
+
+  const togglePlay = () => {
+    if (isPlaying) {
+      if (audioRef.current) audioRef.current.pause();
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      setIsPlaying(false);
+    } else {
+      setIsPlaying(true);
+      if (attachment.url && audioRef.current) {
+        audioRef.current.playbackRate = playbackRate;
+        audioRef.current.play().catch(() => playSyntheticTone());
+      } else {
+        playSyntheticTone();
+      }
+    }
+  };
+
+  const cycleSpeed = () => {
+    const nextRate = playbackRate === 1 ? 1.5 : playbackRate === 1.5 ? 2 : 1;
+    setPlaybackRate(nextRate);
+    if (audioRef.current) {
+      audioRef.current.playbackRate = nextRate;
+    }
+  };
+
+  const formatSecs = (s) => {
+    const mins = Math.floor(s / 60);
+    const secs = Math.floor(s % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  return (
+    <div className="flex items-center gap-3 py-1 px-0.5 min-w-[220px] sm:min-w-[260px] select-none">
+      {/* Play / Pause Circular Button */}
+      <button
+        type="button"
+        onClick={togglePlay}
+        className={cn(
+          'w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-transform shadow-md',
+          isOutgoing
+            ? 'bg-[#00A884] text-[#111B21] hover:scale-105 active:scale-95'
+            : 'bg-[#00A884] text-white hover:scale-105 active:scale-95'
+        )}
+        title={isPlaying ? 'Pause voice note' : 'Play voice note'}
+      >
+        {isPlaying ? (
+          <Pause className="w-5 h-5 fill-current" />
+        ) : (
+          <Play className="w-5 h-5 fill-current ml-0.5" />
+        )}
+      </button>
+
+      {/* Scrub Track & Sound Wave Bars */}
+      <div className="flex-1 flex flex-col justify-center gap-1.5 min-w-0">
+        <div className="flex items-center gap-0.5 sm:gap-1 h-6">
+          {[8, 14, 20, 12, 24, 16, 22, 10, 18, 24, 14, 20, 16, 22, 12, 18, 24, 14, 10, 16].map(
+            (barHeight, idx, arr) => {
+              const active = idx / arr.length <= playbackProgress;
+              return (
+                <div
+                  key={idx}
+                  className={cn(
+                    'w-1 rounded-full transition-colors',
+                    active ? 'bg-[#53BDEB]' : 'bg-[#8696A0]/50'
+                  )}
+                  style={{ height: `${barHeight}px` }}
+                />
+              );
+            }
+          )}
+        </div>
+
+        {/* Time and Speed */}
+        <div className="flex items-center justify-between text-[11px] text-[#8696A0]">
+          <span>{isPlaying ? formatSecs(currentTime) : formatSecs(duration)}</span>
+          <button
+            type="button"
+            onClick={cycleSpeed}
+            className="px-1.5 py-0.5 rounded bg-black/20 hover:bg-black/30 font-semibold text-[10px] text-[#E9EDEF] transition-colors"
+          >
+            {playbackRate}x
+          </button>
+        </div>
+      </div>
+
+      {/* Audio element for real recorded audio */}
+      {attachment.url && (
+        <audio
+          ref={audioRef}
+          src={attachment.url}
+          onTimeUpdate={(e) => {
+            const current = e.target.currentTime;
+            const dur = e.target.duration || duration;
+            setCurrentTime(current);
+            setPlaybackProgress(current / dur);
+          }}
+          onEnded={() => {
+            setIsPlaying(false);
+            setPlaybackProgress(0);
+            setCurrentTime(0);
+          }}
+        />
+      )}
+    </div>
+  );
+};
 
 /**
  * WhatsApp Desktop Style Message Bubble.
@@ -230,21 +385,33 @@ export const MessageBubble = ({
         {/* Attachments rendering */}
         {attachments.length > 0 && (
           <div className="space-y-1.5 mb-1.5">
-            {attachments.map((att, idx) => (
-              <div
-                key={idx}
-                className="flex items-center gap-2.5 p-2 rounded-lg text-xs bg-black/20 border border-black/10"
-              >
-                {att.type === 'image' ? (
-                  <ImageIcon className="w-4 h-4 shrink-0 text-[#00A884]" />
-                ) : (
-                  <FileText className="w-4 h-4 shrink-0 text-[#00A884]" />
-                )}
-                <span className="truncate flex-1 font-medium">{att.name || 'Attachment'}</span>
-                {att.size && <span className="opacity-70 text-[10px] shrink-0">{att.size}</span>}
-                <Download className="w-3.5 h-3.5 shrink-0 opacity-75 hover:opacity-100 cursor-pointer" />
-              </div>
-            ))}
+            {attachments.map((att, idx) => {
+              if (att.type === 'audio') {
+                return (
+                  <VoiceNotePlayer
+                    key={idx}
+                    attachment={att}
+                    isOutgoing={isOutgoing}
+                  />
+                );
+              }
+
+              return (
+                <div
+                  key={idx}
+                  className="flex items-center gap-2.5 p-2 rounded-lg text-xs bg-black/20 border border-black/10"
+                >
+                  {att.type === 'image' ? (
+                    <ImageIcon className="w-4 h-4 shrink-0 text-[#00A884]" />
+                  ) : (
+                    <FileText className="w-4 h-4 shrink-0 text-[#00A884]" />
+                  )}
+                  <span className="truncate flex-1 font-medium">{att.name || 'Attachment'}</span>
+                  {att.size && <span className="opacity-70 text-[10px] shrink-0">{att.size}</span>}
+                  <Download className="w-3.5 h-3.5 shrink-0 opacity-75 hover:opacity-100 cursor-pointer" />
+                </div>
+              );
+            })}
           </div>
         )}
 

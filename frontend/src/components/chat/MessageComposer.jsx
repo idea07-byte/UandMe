@@ -12,6 +12,7 @@ import {
   X,
   AlertCircle,
   CornerUpLeft,
+  Trash2,
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { EMOJI_CATEGORIES } from '../../services/mockChatData';
@@ -43,10 +44,16 @@ export const MessageComposer = ({
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const [selectedAttachments, setSelectedAttachments] = useState([]);
   const [isSending, setIsSending] = useState(false);
+  const [isRecordingVoice, setIsRecordingVoice] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
 
   const textareaRef = useRef(null);
   const emojiPickerRef = useRef(null);
   const attachmentMenuRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const recordingStreamRef = useRef(null);
+  const recordingTimerRef = useRef(null);
   const toast = useToast();
 
   const charCount = text.length;
@@ -134,6 +141,95 @@ export const MessageComposer = ({
 
   const handleRemoveAttachment = (index) => {
     setSelectedAttachments((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const formatVoiceDuration = (secs) => {
+    const mins = Math.floor(secs / 60);
+    const remainder = secs % 60;
+    return `${mins.toString().padStart(2, '0')}:${remainder.toString().padStart(2, '0')}`;
+  };
+
+  const stopAudioStreams = () => {
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      try {
+        mediaRecorderRef.current.stop();
+      } catch {}
+    }
+    if (recordingStreamRef.current) {
+      recordingStreamRef.current.getTracks().forEach((t) => t.stop());
+      recordingStreamRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      stopAudioStreams();
+    };
+  }, []);
+
+  const handleStartVoiceRecording = async () => {
+    setIsRecordingVoice(true);
+    setRecordingDuration(0);
+    audioChunksRef.current = [];
+
+    try {
+      if (navigator?.mediaDevices?.getUserMedia) {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        recordingStreamRef.current = stream;
+        const mr = new MediaRecorder(stream);
+        mediaRecorderRef.current = mr;
+        mr.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) {
+            audioChunksRef.current.push(e.data);
+          }
+        };
+        mr.start();
+      }
+    } catch (err) {
+      console.warn('[MessageComposer] Hardware mic unavailable, using simulated recording mode:', err);
+    }
+
+    recordingTimerRef.current = setInterval(() => {
+      setRecordingDuration((prev) => prev + 1);
+    }, 1000);
+  };
+
+  const handleCancelVoiceRecording = () => {
+    stopAudioStreams();
+    setIsRecordingVoice(false);
+    setRecordingDuration(0);
+    toast.info('Voice message discarded');
+  };
+
+  const handleSendVoiceRecording = () => {
+    const finalDuration = recordingDuration || 1;
+    stopAudioStreams();
+
+    let audioUrl = null;
+    if (audioChunksRef.current.length > 0) {
+      const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+      audioUrl = URL.createObjectURL(blob);
+    }
+
+    const durationStr = formatVoiceDuration(finalDuration);
+
+    onSendMessage('', [
+      {
+        type: 'audio',
+        name: `Voice message (${durationStr})`,
+        duration: finalDuration,
+        durationStr,
+        url: audioUrl,
+        size: `${Math.round(finalDuration * 14)} KB`,
+      },
+    ]);
+
+    setIsRecordingVoice(false);
+    setRecordingDuration(0);
   };
 
   return (
@@ -299,84 +395,138 @@ export const MessageComposer = ({
         </div>
       )}
 
-      {/* Main Composer Bar (Emoji, Attach, Input, Mic/Send) */}
+      {/* Main Composer Bar (Emoji, Attach, Input, Mic/Send OR Voice Recording Bar) */}
       <div className="flex items-center gap-2 px-3 sm:px-4 py-2.5">
-        {/* Emoji Button */}
-        <button
-          type="button"
-          data-emoji-trigger
-          onClick={() => {
-            setShowEmojiPicker((prev) => !prev);
-            setShowAttachmentMenu(false);
-          }}
-          className={cn(
-            'p-2 rounded-full text-[#8696A0] hover:text-[#E9EDEF] transition-colors shrink-0',
-            showEmojiPicker && 'text-[#00A884]'
-          )}
-          title="Emoji"
-        >
-          <Smile className="w-6 h-6" />
-        </button>
+        {isRecordingVoice ? (
+          /* WhatsApp Style Live Voice Note Recording Bar */
+          <div className="flex-1 flex items-center justify-between gap-3 animate-fade-in">
+            {/* Trash / Cancel Recording Button */}
+            <button
+              type="button"
+              onClick={handleCancelVoiceRecording}
+              className="p-2.5 rounded-full text-[#8696A0] hover:text-rose-400 hover:bg-[#111B21] transition-colors shrink-0"
+              title="Delete voice message"
+            >
+              <Trash2 className="w-5 h-5 text-rose-400" />
+            </button>
 
-        {/* Attachment Button */}
-        <button
-          type="button"
-          data-attachment-trigger
-          onClick={() => {
-            setShowAttachmentMenu((prev) => !prev);
-            setShowEmojiPicker(false);
-          }}
-          className={cn(
-            'p-2 rounded-full text-[#8696A0] hover:text-[#E9EDEF] transition-colors shrink-0',
-            showAttachmentMenu && 'text-[#00A884]'
-          )}
-          title="Attach"
-        >
-          <Paperclip className="w-6 h-6 rotate-45" />
-        </button>
+            {/* Live Recording Duration & Animated Waveform */}
+            <div className="flex-1 flex items-center justify-between bg-[#111B21] rounded-xl px-4 py-2 border border-[#2A3942] shadow-inner">
+              <div className="flex items-center gap-2.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
+                <span className="text-sm font-semibold text-[#E9EDEF]">
+                  {formatVoiceDuration(recordingDuration)}
+                </span>
+              </div>
 
-        {/* Text Input */}
-        <div className="flex-1 relative flex items-center bg-[#2A3942] rounded-lg px-4 py-2">
-          <textarea
-            ref={textareaRef}
-            rows={1}
-            value={text}
-            onChange={(e) => {
-              setText(e.target.value);
-              if (e.target.value.trim().length > 0) {
-                onTypingStart?.();
-              } else {
-                onTypingStop?.();
-              }
-            }}
-            onBlur={() => onTypingStop?.()}
-            onKeyDown={handleKeyDown}
-            placeholder={placeholder}
-            disabled={disabled}
-            className="w-full text-[14.5px] bg-transparent outline-none text-[#E9EDEF] placeholder-[#8696A0] resize-none max-h-28 leading-5"
-          />
-        </div>
+              {/* Dynamic Sound Wave Bars */}
+              <div className="flex items-center gap-1">
+                {[14, 22, 12, 28, 18, 24, 16, 26, 12, 20, 15, 25].map((h, i) => (
+                  <span
+                    key={i}
+                    className="w-1 bg-[#00A884] rounded-full animate-pulse"
+                    style={{
+                      height: `${Math.max(6, (h * (((i + recordingDuration) % 4) + 2)) / 5)}px`,
+                      animationDelay: `${i * 0.1}s`,
+                    }}
+                  />
+                ))}
+              </div>
 
-        {/* Dynamic Mic / Send Button */}
-        {hasText || selectedAttachments.length > 0 ? (
-          <button
-            type="button"
-            onClick={handleSend}
-            disabled={!canSend}
-            className="w-10 h-10 rounded-full bg-[#00A884] hover:bg-[#008f6f] active:scale-95 text-[#111B21] flex items-center justify-center shrink-0 transition-transform shadow-md"
-            title="Send (Enter)"
-          >
-            <Send className="w-5 h-5 fill-current ml-0.5" />
-          </button>
+              <span className="text-xs text-[#8696A0] hidden sm:inline">Recording audio...</span>
+            </div>
+
+            {/* Send Voice Note Button */}
+            <button
+              type="button"
+              onClick={handleSendVoiceRecording}
+              className="w-10 h-10 rounded-full bg-[#00A884] hover:bg-[#008f6f] active:scale-95 text-[#111B21] flex items-center justify-center shrink-0 transition-transform shadow-md"
+              title="Send voice note"
+            >
+              <Send className="w-5 h-5 fill-current ml-0.5" />
+            </button>
+          </div>
         ) : (
-          <button
-            type="button"
-            onClick={() => toast.info('Voice message: hold to record voice note.')}
-            className="w-10 h-10 rounded-full text-[#8696A0] hover:text-[#E9EDEF] hover:bg-[#2A3942] flex items-center justify-center shrink-0 transition-colors"
-            title="Voice message"
-          >
-            <Mic className="w-5 h-5" />
-          </button>
+          /* Normal Composer Bar */
+          <>
+            {/* Emoji Button */}
+            <button
+              type="button"
+              data-emoji-trigger
+              onClick={() => {
+                setShowEmojiPicker((prev) => !prev);
+                setShowAttachmentMenu(false);
+              }}
+              className={cn(
+                'p-2 rounded-full text-[#8696A0] hover:text-[#E9EDEF] transition-colors shrink-0',
+                showEmojiPicker && 'text-[#00A884]'
+              )}
+              title="Emoji"
+            >
+              <Smile className="w-6 h-6" />
+            </button>
+
+            {/* Attachment Button */}
+            <button
+              type="button"
+              data-attachment-trigger
+              onClick={() => {
+                setShowAttachmentMenu((prev) => !prev);
+                setShowEmojiPicker(false);
+              }}
+              className={cn(
+                'p-2 rounded-full text-[#8696A0] hover:text-[#E9EDEF] transition-colors shrink-0',
+                showAttachmentMenu && 'text-[#00A884]'
+              )}
+              title="Attach"
+            >
+              <Paperclip className="w-6 h-6 rotate-45" />
+            </button>
+
+            {/* Text Input */}
+            <div className="flex-1 relative flex items-center bg-[#2A3942] rounded-lg px-4 py-2">
+              <textarea
+                ref={textareaRef}
+                rows={1}
+                value={text}
+                onChange={(e) => {
+                  setText(e.target.value);
+                  if (e.target.value.trim().length > 0) {
+                    onTypingStart?.();
+                  } else {
+                    onTypingStop?.();
+                  }
+                }}
+                onBlur={() => onTypingStop?.()}
+                onKeyDown={handleKeyDown}
+                placeholder={placeholder}
+                disabled={disabled}
+                className="w-full text-[14.5px] bg-transparent outline-none text-[#E9EDEF] placeholder-[#8696A0] resize-none max-h-28 leading-5"
+              />
+            </div>
+
+            {/* Dynamic Mic / Send Button */}
+            {hasText || selectedAttachments.length > 0 ? (
+              <button
+                type="button"
+                onClick={handleSend}
+                disabled={!canSend}
+                className="w-10 h-10 rounded-full bg-[#00A884] hover:bg-[#008f6f] active:scale-95 text-[#111B21] flex items-center justify-center shrink-0 transition-transform shadow-md"
+                title="Send (Enter)"
+              >
+                <Send className="w-5 h-5 fill-current ml-0.5" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleStartVoiceRecording}
+                className="w-10 h-10 rounded-full text-[#8696A0] hover:text-[#00A884] hover:bg-[#2A3942] flex items-center justify-center shrink-0 transition-colors"
+                title="Record voice note (Audio button)"
+              >
+                <Mic className="w-5 h-5" />
+              </button>
+            )}
+          </>
         )}
       </div>
     </div>

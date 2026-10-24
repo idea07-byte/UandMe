@@ -54,7 +54,7 @@ export const DesignSystemPage = () => {
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-xl bg-primary-100 dark:bg-primary-950/60 text-primary-700 dark:text-primary-300 text-xs font-bold uppercase tracking-wider mb-2">
             <Sparkles className="w-3.5 h-3.5" />
-            Phase 1 Deliverable
+            Component System
           </div>
           <h1 className="text-3xl font-black text-charcoal-900 dark:text-white tracking-tight">
             PulseChat Design System & Component Library

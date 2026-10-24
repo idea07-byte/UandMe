@@ -4,6 +4,8 @@ import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider } from './context/ToastContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
+import { CallProvider } from './context/CallContext';
+import WhatsAppCallModal from './components/chat/WhatsAppCallModal';
 import MainLayout from './layouts/MainLayout';
 import AuthLayout from './layouts/AuthLayout';
 import SettingsLayout from './layouts/SettingsLayout';
@@ -60,9 +62,11 @@ export function App() {
       <ToastProvider>
         <AuthProvider>
           <SocketProvider>
-            <BrowserRouter>
-              <Routes>
-                {/* Authenticated Application Shell */}
+            <CallProvider>
+              <BrowserRouter>
+                <WhatsAppCallModal />
+                <Routes>
+                  {/* Authenticated Application Shell */}
                 <Route element={<MainLayout />}>
                   <Route path="/" element={<Navigate to="/chat" replace />} />
                   <Route
@@ -131,11 +135,12 @@ export function App() {
                 </Route>
               </Routes>
             </BrowserRouter>
-          </SocketProvider>
-        </AuthProvider>
-      </ToastProvider>
-    </ThemeProvider>
-  );
+          </CallProvider>
+        </SocketProvider>
+      </AuthProvider>
+    </ToastProvider>
+  </ThemeProvider>
+);
 };
 
 export default App;

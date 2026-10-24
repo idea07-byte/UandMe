@@ -7,13 +7,14 @@ import Input from '../components/common/Input';
 import Button from '../components/common/Button';
 import chatService from '../services/chatService';
 import useToast from '../hooks/useToast';
+import { useCall } from '../context/CallContext';
 import { Bug, Sparkles } from 'lucide-react';
 import { cn } from '../utils/cn';
 
 /**
- * Phase 4: Full Contacts Management Page.
+ * Contacts Management Page.
  * Responsive desktop split-pane and mobile stack with alphabetical grouping,
- * live search, contact profile inspection, and conversation initiation.
+ * live search, contact profile inspection, conversation initiation, and WebRTC calls.
  */
 export const ContactsPage = () => {
   const navigate = useNavigate();
@@ -26,6 +27,8 @@ export const ContactsPage = () => {
   const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'online' | 'offline'
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const { startCall } = useCall();
 
   // New Contact Modal State
   const [isNewContactModalOpen, setIsNewContactModalOpen] = useState(false);
@@ -85,6 +88,27 @@ export const ContactsPage = () => {
     } catch {
       toast.error('Failed to initiate conversation.');
     }
+  };
+
+  // Handle Starting Voice / Video Calls
+  const handleStartVoiceCall = (contact) => {
+    if (!contact) return;
+    startCall({
+      recipientId: contact.id || contact._id || contact.partnerId,
+      recipientName: contact.name,
+      recipientAvatar: contact.avatar,
+      callType: 'voice',
+    });
+  };
+
+  const handleStartVideoCall = (contact) => {
+    if (!contact) return;
+    startCall({
+      recipientId: contact.id || contact._id || contact.partnerId,
+      recipientName: contact.name,
+      recipientAvatar: contact.avatar,
+      callType: 'video',
+    });
   };
 
   // Handle Toggle Favorite
@@ -197,9 +221,9 @@ export const ContactsPage = () => {
           <div className="flex items-center gap-2">
             <Sparkles className="w-3.5 h-3.5 text-primary-600" />
             <span className="font-semibold text-charcoal-800 dark:text-charcoal-200">
-              Phase 4 Demo Sandbox
+              Campus Directory
             </span>
-            <span className="hidden lg:inline text-charcoal-400">• Mock data & simulated states</span>
+            <span className="hidden lg:inline text-charcoal-400">• Verified contacts & real-time presence</span>
           </div>
 
           <div className="flex items-center gap-2">
@@ -242,6 +266,8 @@ export const ContactsPage = () => {
           contact={selectedContact}
           onClose={() => setSelectedContact(null)}
           onStartChat={handleStartChat}
+          onStartVoiceCall={handleStartVoiceCall}
+          onStartVideoCall={handleStartVideoCall}
           onToggleFavorite={handleToggleFavorite}
           onToggleBlock={handleToggleBlock}
           className="flex-1"
@@ -311,3 +337,4 @@ export const ContactsPage = () => {
 };
 
 export default ContactsPage;
+

@@ -14,6 +14,7 @@ import chatService from '../services/chatService';
 import useToast from '../hooks/useToast';
 import useAuth from '../hooks/useAuth';
 import useSocket from '../hooks/useSocket';
+import { useCall } from '../context/CallContext';
 import { cn } from '../utils/cn';
 
 export const ChatPage = () => {
@@ -22,6 +23,7 @@ export const ChatPage = () => {
   const toast = useToast();
   const { user } = useAuth();
   const { messagingService } = useSocket();
+  const { startCall } = useCall();
 
   // Navigation rail section ('chats' | 'calls' | 'status' | 'communities' | 'archived' | 'starred' | 'settings')
   const [activeSection, setActiveSection] = useState('chats');
@@ -414,16 +416,62 @@ export const ChatPage = () => {
     }
   };
 
+  // Helper to extract actual recipient ID from conversation
+  const resolveTargetUser = (target) => {
+    const c = target || activeConversation;
+    if (!c) return null;
+    const currentUid = user?.id || user?._id;
+    const recipientId =
+      c.partnerId ||
+      c._id ||
+      c.id ||
+      c.participants?.find((p) => {
+        const pid = typeof p === 'object' ? p._id || p.id : p;
+        return pid !== currentUid;
+      })?._id ||
+      c.participants?.find((p) => {
+        const pid = typeof p === 'object' ? p._id || p.id : p;
+        return pid !== currentUid;
+      })?.id;
+
+    return {
+      recipientId: typeof recipientId === 'object' ? recipientId._id || recipientId.id : recipientId,
+      recipientName: c.name || c.username || 'Contact',
+      recipientAvatar: c.avatar || null,
+      conversationId: c.id || c._id,
+    };
+  };
+
+  // WhatsApp Voice & Video Call handlers
+  const handleStartVoiceCall = (target) => {
+    const info = resolveTargetUser(target);
+    if (!info || !info.recipientId) {
+      toast.info('Select a conversation or contact to place a call.');
+      return;
+    }
+    startCall({ ...info, callType: 'voice' });
+  };
+
+  const handleStartVideoCall = (target) => {
+    const info = resolveTargetUser(target);
+    if (!info || !info.recipientId) {
+      toast.info('Select a conversation or contact to place a video call.');
+      return;
+    }
+    startCall({ ...info, callType: 'video' });
+  };
+
   return (
     <div className="flex h-screen w-full overflow-hidden bg-[#0B141A] text-[#E9EDEF]">
       {/* 1st Pane: WhatsApp Thin Navigation Rail (Far Left) */}
       <WhatsAppNavRail
         activeSection={activeSection}
         onSelectSection={(section) => {
-          setActiveSection(section);
           if (section === 'settings') {
-            toast.info('Settings: Account, Privacy, Chats, Notifications, Shortcuts');
+            navigate('/settings/profile');
+            return;
           }
+          setActiveSection(section);
         }}
         unreadChatsCount={unreadTotal}
         missedCallsCount={1}
@@ -465,6 +513,13 @@ export const ChatPage = () => {
         {activeSection === 'calls' && (
           <CallsList
             onSelectCall={(call) => toast.info(`Call history for ${call.name}`)}
+            onStartCall={(contact, type) => {
+              if (type === 'video') {
+                handleStartVideoCall(contact);
+              } else {
+                handleStartVoiceCall(contact);
+              }
+            }}
           />
         )}
 
@@ -561,12 +616,24 @@ export const ChatPage = () => {
               onToggleBlock={handleToggleBlock}
               isTyping={isTyping}
               typingUserName={typingUserName}
+              onStartVoiceCall={handleStartVoiceCall}
+              onStartVideoCall={handleStartVideoCall}
             />
           ) : (
             <ChatEmptyState onNewChat={() => navigate('/contacts')} />
           )
         ) : activeSection === 'calls' ? (
-          <CallsEmptyState />
+          <CallsEmptyState
+            onStartCall={() => {
+              if (activeConversation) {
+                handleStartVoiceCall(activeConversation);
+              } else if (conversations.length > 0) {
+                handleStartVoiceCall(conversations[0]);
+              } else {
+                toast.info('Select a contact from your list to place an audio or video call.');
+              }
+            }}
+          />
         ) : activeSection === 'status' ? (
           <StatusEmptyState />
         ) : activeSection === 'communities' ? (

@@ -76,7 +76,7 @@ export const SettingsLayout = () => {
             </button>
 
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary-100 dark:bg-primary-950 text-primary-700 dark:text-primary-300 uppercase tracking-wider">
-              Phase 5
+              Preferences
             </span>
           </div>
 

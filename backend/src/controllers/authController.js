@@ -13,7 +13,9 @@ import {
  */
 export const register = async (req, res, next) => {
   try {
-    const { name, email, password } = req.body;
+    const name = req.body.name || req.body.fullName || req.body.username;
+    const email = req.body.email;
+    const password = req.body.password;
 
     // 1. Validate incoming input fields
     const { isValid, error } = validateRegisterInput({ name, email, password });
@@ -65,10 +67,11 @@ export const register = async (req, res, next) => {
  */
 export const login = async (req, res, next) => {
   try {
-    const { email, password } = req.body;
+    const rawEmail = req.body.email || req.body.username || req.body.identifier;
+    const password = req.body.password;
 
     // 1. Validate incoming input fields
-    const { isValid, error } = validateLoginInput({ email, password });
+    const { isValid, error } = validateLoginInput({ email: rawEmail, password });
     if (!isValid) {
       return res.status(400).json({
         status: 'error',
@@ -77,7 +80,7 @@ export const login = async (req, res, next) => {
     }
 
     // 2. Normalize email
-    const normalizedEmail = normalizeEmail(email);
+    const normalizedEmail = normalizeEmail(rawEmail);
 
     // 3. Find user and explicitly include password field (which is select: false)
     const user = await User.findOne({ email: normalizedEmail }).select('+password');

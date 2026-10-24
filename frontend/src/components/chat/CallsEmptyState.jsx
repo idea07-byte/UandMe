@@ -16,7 +16,7 @@ import useToast from '../../hooks/useToast';
  *  Start call, New call link, Call a number, Schedule call.
  *  Footer: calls are end-to-end encrypted."
  */
-export const CallsEmptyState = () => {
+export const CallsEmptyState = ({ onStartCall }) => {
   const toast = useToast();
 
   const actions = [
@@ -25,7 +25,13 @@ export const CallsEmptyState = () => {
       label: 'Start call',
       icon: Phone,
       color: 'bg-[#00A884] text-white hover:bg-[#008f6f]',
-      action: () => toast.info('Pick a contact from your list to place an audio or video call.'),
+      action: () => {
+        if (onStartCall) {
+          onStartCall();
+        } else {
+          toast.info('Pick a contact from your list to place an audio or video call.');
+        }
+      },
     },
     {
       id: 'link',

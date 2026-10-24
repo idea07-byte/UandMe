@@ -5,6 +5,7 @@ import {
   getMe,
   logout,
 } from '../controllers/authController.js';
+import { getUsers } from '../controllers/userController.js';
 import { protect } from '../middleware/authMiddleware.js';
 import { authLimiter } from '../middleware/rateLimiter.js';
 
@@ -17,5 +18,7 @@ router.post('/logout', logout);
 
 // Protected Authentication Endpoints (Requires valid Bearer JWT)
 router.get('/me', protect, getMe);
+router.get('/users', protect, getUsers);
 
 export default router;
+

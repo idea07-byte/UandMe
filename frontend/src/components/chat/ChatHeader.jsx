@@ -38,6 +38,8 @@ export const ChatHeader = ({
   searchQuery = '',
   onSearchChange,
   onCloseSearch,
+  onStartVoiceCall,
+  onStartVideoCall,
 }) => {
   const [showSearch, setShowSearch] = useState(Boolean(searchQuery));
   const [showMenu, setShowMenu] = useState(false);
@@ -74,11 +76,19 @@ export const ChatHeader = ({
   } = conversation;
 
   const handleVoiceCall = () => {
-    toast.info(`Voice call started with ${name}. WebRTC signaling connects in Phase 5.`, 'Voice Call');
+    if (onStartVoiceCall) {
+      onStartVoiceCall(conversation);
+    } else {
+      toast.info(`Voice call started with ${name}.`, 'Voice Call');
+    }
   };
 
   const handleVideoCall = () => {
-    toast.info(`Video call started with ${name}. WebRTC signaling connects in Phase 5.`, 'Video Call');
+    if (onStartVideoCall) {
+      onStartVideoCall(conversation);
+    } else {
+      toast.info(`Video call started with ${name}.`, 'Video Call');
+    }
   };
 
   return (

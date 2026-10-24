@@ -178,7 +178,14 @@ export const chatService = {
       }
     } catch (err) {
       console.warn('[chatService] Backend /chats unreachable, using local fallback:', err.message);
-      conversations = [...fallbackConversations];
+    }
+
+    // Merge fallback conversations so locally created or sandbox chats remain available
+    const backendIds = new Set(conversations.map((c) => c.id));
+    for (const fc of fallbackConversations) {
+      if (!backendIds.has(fc.id)) {
+        conversations.push(fc);
+      }
     }
 
     // 2. Category view filter ('chats' vs 'archived')
@@ -221,13 +228,16 @@ export const chatService = {
   async getMessages(conversationId) {
     if (!conversationId) return [];
 
-    try {
-      const response = await api.get(`/messages/${conversationId}`);
-      if (Array.isArray(response)) {
-        return response.map(normalizeMessage);
+    const isMongoId = /^[0-9a-fA-F]{24}$/.test(conversationId);
+    if (isMongoId) {
+      try {
+        const response = await api.get(`/messages/${conversationId}`);
+        if (Array.isArray(response)) {
+          return response.map(normalizeMessage);
+        }
+      } catch (err) {
+        console.warn(`[chatService] Backend /messages/${conversationId} error:`, err.message);
       }
-    } catch (err) {
-      console.warn(`[chatService] Backend /messages/${conversationId} error:`, err.message);
     }
 
     return fallbackMessages[conversationId] || [];
@@ -244,18 +254,20 @@ export const chatService = {
   async sendMessage({ conversationId, text, attachments = [] }) {
     if (!conversationId) throw new Error('conversationId is required');
 
-    try {
-      const response = await api.post('/messages', {
-        chatId: conversationId,
-        content: text.trim(),
-      });
+    const isMongoId = /^[0-9a-fA-F]{24}$/.test(conversationId);
+    if (isMongoId) {
+      try {
+        const response = await api.post('/messages', {
+          chatId: conversationId,
+          content: text.trim(),
+        });
 
-      if (response && response._id) {
-        return normalizeMessage(response);
+        if (response && response._id) {
+          return normalizeMessage(response);
+        }
+      } catch (err) {
+        console.warn('[chatService] POST /messages failed, using local fallback:', err.message);
       }
-    } catch (err) {
-      console.warn('[chatService] POST /messages failed:', err.message);
-      throw err;
     }
 
     // Local fallback creation

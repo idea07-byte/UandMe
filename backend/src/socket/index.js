@@ -4,6 +4,7 @@ import registerConversationHandlers from './conversationHandler.js';
 import registerTypingHandlers from './typingHandler.js';
 import registerReadReceiptHandlers from './readReceiptHandler.js';
 import registerMessageHandlers from './messageHandler.js';
+import registerCallHandlers from './callHandler.js';
 import presenceManager from './presenceManager.js';
 import User from '../models/User.js';
 
@@ -77,6 +78,7 @@ export const initSocket = (httpServer) => {
     registerTypingHandlers(io, socket);
     registerReadReceiptHandlers(io, socket);
     registerMessageHandlers(io, socket);
+    registerCallHandlers(io, socket);
 
     // 4. Presence Query API (Safe retrieval of presence status)
     socket.on('user:presence:query', (payload, callback) => {
