@@ -82,7 +82,7 @@ export const LoginPage = () => {
 
   // Explicit, isolated Developer Preview login
   const handleDevPreview = () => {
-    const demoEmail = email.trim() || 'alex.morgan@capstone.io';
+    const demoEmail = email.trim() || 'alex.morgan@uandme.io';
     devLogin(demoEmail);
     toast.info('Signed in using Development Preview Mode (Local Sandbox).', 'Dev Mode Active');
     navigate('/chat', { replace: true });

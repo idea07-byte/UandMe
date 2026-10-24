@@ -24,7 +24,7 @@ export const AuthLayout = () => {
               <span className="text-2xl font-black tracking-tight text-white">
                 Pulse<span className="text-primary-400">Chat</span>
               </span>
-              <p className="text-xs text-charcoal-400 font-medium">College Capstone Project</p>
+              <p className="text-xs text-charcoal-400 font-medium">Real-Time Messaging & Calling</p>
             </div>
           </Link>
         </div>

@@ -122,7 +122,7 @@ export const ForgotPasswordPage = () => {
               Try Another Email
             </Button>
 
-            {/* Quick Testing Link for Capstone Evaluation */}
+            {/* Direct Link to Reset Password */}
             <Link to="/reset-password?token=demo_reset_token_2026">
               <Button
                 type="button"

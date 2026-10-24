@@ -156,7 +156,7 @@ export const NotificationSettingsPage = () => {
             checked={groupMessages}
             onChange={updateGroups}
             title="Group Chat Messages"
-            description="Receive alerts for messages in project teams and capstone study groups."
+            description="Receive alerts for messages in project teams and collaboration groups."
             icon={Users}
           />
 

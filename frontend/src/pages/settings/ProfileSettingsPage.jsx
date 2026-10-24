@@ -27,7 +27,7 @@ export const ProfileSettingsPage = () => {
   const [name, setName] = useState(user?.name || 'Alex Morgan');
   const [email] = useState(user?.email || 'alex.morgan@pulsechat.io');
   const [statusMessage, setStatusMessage] = useState(
-    user?.statusMessage || 'Building an awesome Capstone Project 🚀'
+    user?.statusMessage || 'Available on UandMe 🚀'
   );
   const [status, setStatus] = useState(user?.status || USER_STATUS.ONLINE);
   const [phone, setPhone] = useState(user?.phone || '+1 (555) 234-5678');

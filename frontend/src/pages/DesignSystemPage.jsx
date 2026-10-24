@@ -199,7 +199,7 @@ export const DesignSystemPage = () => {
               type="password"
               placeholder="Enter secret passphrase"
               leftIcon={<Lock className="w-4 h-4" />}
-              defaultValue="capstone2026"
+              defaultValue="uandme2026"
             />
 
             <Input
@@ -219,7 +219,7 @@ export const DesignSystemPage = () => {
               value={demoSearch}
               onChange={(e) => setDemoSearch(e.target.value)}
               onClear={() => setDemoSearch('')}
-              placeholder="Search conversations, messages, or capstone resources..."
+              placeholder="Search conversations, messages, or shared resources..."
             />
           </div>
         </div>
@@ -366,7 +366,7 @@ export const DesignSystemPage = () => {
         <Modal
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
-          title="Capstone Project Modal"
+          title="Demo Dialog Modal"
           description="A demonstration of the reusable Modal component in PulseChat."
           footer={
             <>

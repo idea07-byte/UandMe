@@ -66,7 +66,7 @@ export const MOCK_STATUSES = [
     hasUnseen: true,
     latestStory: {
       type: 'text',
-      content: 'Wrapping up the capstone presentation slides! 🚀✨',
+      content: 'Wrapping up the project presentation slides! 🚀✨',
       bgColor: '#005C4B',
     },
   },
@@ -107,7 +107,7 @@ export const MOCK_COMMUNITIES = [
     announcementGroup: 'Announcements 📢',
     subgroups: [
       { id: 'sub_1', name: 'Announcements 📢', lastMsg: 'Dean: Registration deadline extended to Friday', unread: 2 },
-      { id: 'sub_2', name: 'Capstone Projects 2026', lastMsg: 'Evaluation rubric posted on the portal', unread: 0 },
+      { id: 'sub_2', name: 'Product Engineering', lastMsg: 'Sprint demo link posted on the portal', unread: 0 },
       { id: 'sub_3', name: 'Internship & Job Postings', lastMsg: 'Google Summer of Code & Campus placements open', unread: 1 },
     ],
   },

@@ -1,8 +1,8 @@
-# PulseChat — Real-Time Messaging App (Capstone Project)
+# UandMe (PulseChat) — Real-Time Messaging & Calling Platform
 
 ![PulseChat Banner](https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&auto=format&fit=crop&q=80)
 
-> A modern, high-performance real-time messaging application inspired by WhatsApp Web, Telegram, and Slack, built as a college capstone project.
+> A modern, high-performance real-time messaging and WebRTC audio/video calling application inspired by WhatsApp Web.
 
 ---
 
@@ -68,19 +68,19 @@ iAndU/
 
 ---
 
-## 🎨 Phase 4: Contacts & Conversation Management
+## 🎨 Contacts & Conversation Management
 
 ### 1. Contacts Management Workspace (`/contacts`)
 * **Alphabetical Grouping**: Contacts are automatically categorized into sticky alphabetical sections (`A`, `B`, `C`...) with contact counts.
 * **A–Z Jump Rail**: Instant letter navigation bar to jump directly to any alphabet section.
-* **Live Search**: Multi-field search across full name, university email, handle, and academic department.
+* **Live Search**: Multi-field search across full name, email address, handle, and team/department.
 * **Status Filter Tabs**: Instant filtering by `All Contacts`, `Online`, and `Offline`.
-* **Profile Details Panel**: Side-by-side preview showing avatar, presence indicator, about quote, university email, phone, department, joined date, and 256-bit encryption badge.
+* **Profile Details Panel**: Side-by-side preview showing avatar, presence indicator, about bio, email, phone, department/organization, joined date, and 256-bit encryption badge.
 * **Direct Conversation Initiation**: One-click "Message" trigger opens or creates the conversation thread and navigates to [`/chat/:chatId`](file:///d:/java/iAndU/src/pages/ChatPage.jsx).
-* **Evaluator Sandbox Bar**: Includes "Simulate Loading" and "Test Error State" controls with retry buttons for evaluation testing.
+* **Resilience Sandbox Bar**: Includes "Simulate Loading" and "Test Error State" controls with retry buttons for testing network states.
 
 ### 2. New Chat Interface (`NewChatModal.jsx`)
-* **Registered Campus Users Directory**: Search verified students, faculty advisors, and researchers.
+* **Registered Users Directory**: Search verified team members, colleagues, and contacts.
 * **Search by Name or Email**: Fast dual search filtering with query matching.
 * **Live Profile Preview**: Displays selected user details (avatar, role badge, department, bio) before messaging.
 * **Clear User Feedback**: Instant selection highlights, toast notification, and automatic redirection to chat.
@@ -96,18 +96,18 @@ iAndU/
 
 ---
 
-## ⚙️ Phase 5: Profile & Settings Suite
+## ⚙️ Profile & Settings Suite
 
 ### 1. My Profile (`/settings/profile`)
-* **Avatar Management**: Displays current photo with live presence dot. Includes the `AvatarPickerModal` allowing users to upload custom image files (with 3MB check and DataURL reader), pick from 8 diverse student/faculty preset portraits, enter a custom image URL, or remove the avatar.
-* **Identity Form**: Editable display name, read-only SSO email with institutional verification badge, customizable about/status message with a 120-character counter, academic department, and title.
+* **Avatar Management**: Displays current photo with live presence dot. Includes the `AvatarPickerModal` allowing users to upload custom image files (with 3MB check and DataURL reader), pick from 8 diverse preset portraits, enter a custom image URL, or remove the avatar.
+* **Identity Form**: Editable display name, verified email address, customizable about/status message with a 120-character counter, department/organization, and title.
 * **Presence Status**: Interactive buttons to switch between `Online`, `Away`, `Busy`, and `Offline`.
 * **Form Validation & Actions**: Real-time validation requiring names >= 2 chars; Save and Cancel buttons (Cancel resets to current user data).
 
 ### 2. Account Settings (`/settings/account`)
-* **Account Information**: User ID, verification status, student handle, and account creation semester.
+* **Account Information**: User ID, verification status, user handle, and account creation date.
 * **Media & Cloud Quota**: Visual progress bar showing storage quota utilization (`142 MB / 5.0 GB used • 2.8%`).
-* **Data Portability**: "Request Export" button that simulates preparing a machine-readable JSON archive of chat history and metadata.
+* **Data Portability**: "Request Export" button that prepares a machine-readable JSON archive of chat history and metadata.
 * **Sign Out**: Explicit logout button with confirmation dialog.
 * **Danger Zone**: Delete Account card with `ConfirmationModal` explaining permanent removal policies.
 
@@ -125,7 +125,7 @@ iAndU/
 * **Accessible Toggles**: Built using `SettingsToggle` with `role="switch"`, `aria-checked`, and keyboard controls.
 
 ### 5. Privacy Settings (`/settings/privacy`)
-* **Last-Seen Visibility**: Choose who can see your last-seen timestamp (`Everyone on Campus`, `My Contacts Only`, `Nobody`).
+* **Last-Seen Visibility**: Choose who can see your last-seen timestamp (`Everyone`, `My Contacts Only`, `Nobody`).
 * **Online Status Visibility**: Stealth mode option to hide active online presence indicator.
 * **Profile Visibility**: Granular controls for profile photo visibility and about/status visibility.
 * **Read Receipts**: Toggle sending and receiving double emerald checkmarks (`✓✓`).
@@ -200,7 +200,7 @@ All protected endpoints require the HTTP header: `Authorization: Bearer <JWT_TOK
 | `GET` | `/api/chats` | List user's conversations | `?filter=all&search=&view=chats` | `Array<Conversation>` |
 | `GET` | `/api/chats/:id/messages` | Message history for room | `?limit=50&before=` | `Array<Message>` |
 | `POST` | `/api/chats/:id/messages` | Send message (REST fallback) | `{ text, attachments }` | `Message` |
-| `GET` | `/api/contacts` | List campus contacts | `?search=&status=all` | `Array<Contact>` |
+| `GET` | `/api/contacts` | List contacts directory | `?search=&status=all` | `Array<Contact>` |
 | `GET` | `/api/users/search` | Directory search | `?q=<term>` | `Array<UserPreview>` |
 
 ### 2. Socket.IO Connection Handshake
@@ -339,6 +339,17 @@ Broadcast peer typing state to members currently in `conversationId`.
 
 ---
 
+## 📞 WebRTC 1-to-1 Audio & Video Calling
+
+UandMe features a full-fidelity WhatsApp-style peer-to-peer calling system built on WebRTC and Socket.IO real-time signaling:
+* **Audio & HD Video Modes**: Initiate 1-on-1 voice or video calls directly from the chat header or contact details panel.
+* **Signaling Pipeline**: Low-latency bi-directional negotiation of SDP offers, answers, and ICE discovery candidates via Socket.IO events (`call:initiate`, `call:incoming`, `call:accept`, `call:reject`, `call:busy`, `call:offer`, `call:answer`, `call:ice_candidate`, `call:end`, `call:cancel`).
+* **Real-Time Presence & Busy State**: `PresenceManager` tracks active user sockets, preventing call collisions by emitting `call:busy` if the recipient is engaged on another call.
+* **WhatsApp Desktop Call Modal**: Floating overlay window with incoming and outgoing states, synthetic ringtones generated via Web Audio API, Picture-in-Picture (PiP) local preview, remote video stream rendering, microphone mute, camera toggle, and screen sharing.
+* **Signaling Test Automation**: Validated through `backend/test_webrtc_calls.js` verifying offline routing, call ringing, peer answering, candidate signaling, call termination, and caller cancellation.
+
+---
+
 ## 🛡️ Critical Security Rules & Safeguards
 
 1. **Server-Side Room Authorization**: The client never blindly asserts room presence. Joining a room emits `join_conversation` with an acknowledgement; the server inspects the authenticated JWT user and rejects unauthorized room join requests.
@@ -376,45 +387,47 @@ npm run install:all
 *(Or navigate to `frontend` and `backend` separately and run `npm install`).*
 
 ### 4. Running the Development Servers
-In the project root, you can start the frontend and backend servers:
+In the project root, start both the backend and frontend servers with a single command:
 ```bash
-# Terminal 1: Start Backend (Express + Socket.IO on http://localhost:5000)
-npm run dev:backend
-
-# Terminal 2: Start Frontend (Vite Dev Server on http://localhost:5173)
-npm run dev:frontend
+npm run dev
 ```
+*(Backend runs on `http://localhost:5000` and Frontend runs on `http://localhost:5173`).*
 
-### 5. Running Automated Backend Tests
-Run the complete Vitest + Supertest integration test suite (24 tests across auth, users, chats, messages, and sockets):
+### 5. Running Automated Backend & WebRTC Tests
+Run the complete integration test suites:
 ```bash
+# Vitest + Supertest integration test suite (24 tests across auth, users, chats, messages, and sockets)
 npm run test:backend
+
+# WebRTC signaling integration tests
+node backend/test_webrtc_calls.js
 ```
 
 ### 6. Build Frontend for Production
 ```bash
 npm run build:frontend
 ```
-*(Verified: compiles in ~5.3 seconds with zero errors).*
+*(Compiles cleanly with zero errors).*
 
 ---
 
-## 🧪 Quick Test Checklist for Evaluators
+## 🧪 Quick Test & Verification Checklist
 
 1. **Real-Time Connection Badge**:
    - In `/chat`, observe the `ConnectionStatusBadge` rendered in both the Conversation List header and the Active Chat header.
-   - When running offline without a live backend, notice the purple/slate badge: **`Dev Sandbox`** / **`Sandbox`**.
+   - When running offline without a live backend, notice the indicator: **`Dev Sandbox`** / **`Sandbox`**.
 2. **Optimistic Message Sending & Server Reconciliation**:
    - Type a message in the composer and press Enter.
-   - Observe the message rendering instantly with the spinning clock icon (`sending`).
+   - Observe the message rendering instantly with the clock icon (`sending`).
    - Within 250ms, notice the server reconciliation updating the bubble to a single check (`sent`).
    - Within 900ms, notice the tick updating to a double check (`delivered`).
 3. **Typing Indicators**:
    - Type into the composer: notice `messagingService.startTyping` triggers, with an automatic 1.8s debounce stop.
-   - In sandbox mode, after sending a message, notice the incoming simulated typing indicator: "Peer (Sandbox) is typing...".
-4. **Simulated Reply Labeling**:
-   - In sandbox mode, after the typing indicator finishes, observe the incoming reply with the distinct `Dev Mock Sandbox` pill.
+   - In sandbox mode, after sending a message, notice the incoming simulated typing indicator.
+4. **Audio & Video Calling**:
+   - Click the Phone or Video Camera icon in the chat header to initiate a 1-to-1 WebRTC call.
+   - Test audio ringing, call accept/reject, mute, camera toggle, and screen share controls.
 5. **Failed Message & Retry**:
-   - If an error or rejection occurs, observe the bubble displaying a red alert icon and "Failed to send - Tap to retry".
+   - If an error or rejection occurs, observe the bubble displaying an alert icon and "Failed to send - Tap to retry".
    - Clicking "Retry" triggers `messagingService.retryMessage()` and re-queues the message.
 

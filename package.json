@@ -2,7 +2,7 @@
   "name": "pulsechat",
   "version": "1.0.0",
   "private": true,
-  "description": "PulseChat - Real-Time Campus Messaging Platform (Fullstack Monorepo)",
+  "description": "UandMe (PulseChat) - Real-Time Messaging & WebRTC Calling Platform (Fullstack Monorepo)",
   "scripts": {
     "dev": "concurrently -n \"backend,frontend\" -c \"blue,green\" \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:frontend": "npm run dev --prefix frontend",

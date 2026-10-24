@@ -92,10 +92,10 @@ export const EmailVerificationPage = () => {
         </div>
       </div>
 
-      {/* Quick State Simulation Pills for Capstone Reviewers */}
+      {/* Quick State Simulation Pills */}
       <div className="mb-6 p-2 rounded-2xl bg-charcoal-100 dark:bg-charcoal-800/80 border border-charcoal-200/50 dark:border-charcoal-700/50">
         <div className="flex items-center justify-between px-1 mb-1.5 text-[10px] font-bold uppercase tracking-wider text-charcoal-500">
-          <span>Capstone Evaluator Preview:</span>
+          <span>Preview States:</span>
           <span>Switch State</span>
         </div>
         <div className="grid grid-cols-3 gap-1 text-xs">

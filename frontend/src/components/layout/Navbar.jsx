@@ -38,8 +38,8 @@ export const Navbar = () => {
             <span className="text-lg font-extrabold tracking-tight text-charcoal-900 dark:text-white flex items-center gap-1.5">
               Pulse<span className="text-primary-600 dark:text-primary-400">Chat</span>
             </span>
-            <span className="hidden sm:inline-block text-[10px] font-semibold tracking-wider uppercase text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-950/60 px-1.5 py-0.2 rounded-md">
-              Capstone
+            <span className="hidden sm:inline-block text-[10px] font-semibold tracking-wider uppercase text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-950/60 px-1.5 py-0.5 rounded-md">
+              Pro
             </span>
           </div>
         </NavLink>

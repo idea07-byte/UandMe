@@ -111,9 +111,9 @@ export const RegisterPage = () => {
 
   const handleDevPreviewRegister = () => {
     const validName = name.trim() || 'Jordan Miller';
-    const validEmail = email.trim() || 'jordan.miller@capstone.io';
+    const validEmail = email.trim() || 'jordan.miller@uandme.io';
     devRegister({ name: validName, email: validEmail });
-    toast.info('Created student profile in Sandbox Preview Mode.', 'Dev Mode Active');
+    toast.info('Created profile in Sandbox Preview Mode.', 'Dev Mode Active');
     navigate('/chat', { replace: true });
   };
 
@@ -264,7 +264,7 @@ export const RegisterPage = () => {
                 href="#terms"
                 onClick={(e) => {
                   e.preventDefault();
-                  toast.info('PulseChat Terms of Service standard for student capstone projects.');
+                  toast.info('PulseChat Terms of Service and Privacy Policy.');
                 }}
                 className="text-primary-600 dark:text-primary-400 font-semibold hover:underline"
               >
