@@ -30,6 +30,22 @@ const startServer = async () => {
   // Create native HTTP server wrapping Express app
   httpServer = http.createServer(app);
 
+  // Attach error listener for graceful error diagnostics (e.g., port conflicts)
+  httpServer.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error('====================================================');
+      console.error(`❌ Port ${PORT} is already in use by another process!`);
+      console.error('👉 How to fix:');
+      console.error(`   In PowerShell, terminate the process holding port ${PORT}:`);
+      console.error(`   Stop-Process -Id (Get-NetTCPConnection -LocalPort ${PORT}).OwningProcess -Force`);
+      console.error(`   Or set a different PORT in backend/.env (e.g. PORT=5001)`);
+      console.error('====================================================');
+    } else {
+      console.error('❌ Server startup error:', err.message);
+    }
+    process.exit(1);
+  });
+
   // Initialize Socket.IO server attached to the HTTP server
   io = initSocket(httpServer);
 
