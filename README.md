@@ -1,6 +1,6 @@
 # UandMe (PulseChat) — Real-Time Messaging & Calling Platform
 
-![PulseChat Banner](https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&auto=format&fit=crop&q=80)
+![UandMe Banner](docs/assets/banner.jpg)
 
 > A modern, high-performance real-time messaging and WebRTC audio/video calling application inspired by WhatsApp Web.
 
@@ -8,7 +8,7 @@
 
 ## 🎯 Project Overview
 
-**PulseChat** is an ultra-responsive, secure, and intuitive web messaging platform. It combines a clean, accessible **Emerald Green** brand design system with an eye-friendly **Deep Charcoal** dark mode, comprehensive UI component library, and future-proof architectural foundations for real-time WebSocket communication and RESTful APIs.
+**UandMe** is an ultra-responsive, secure, and intuitive web messaging and calling platform. It combines a clean, accessible **Emerald Green** brand design system with an eye-friendly **Deep Charcoal** dark mode, comprehensive UI component library, and future-proof architectural foundations for real-time WebSocket communication and RESTful APIs.
 
 ---
 
