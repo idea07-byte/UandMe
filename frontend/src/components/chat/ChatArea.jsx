@@ -171,6 +171,8 @@ export const ChatArea = ({
       {isContactInfoOpen && (
         <WhatsAppContactInfoPanel
           contact={conversation}
+          conversation={conversation}
+          currentUserId={currentUserId}
           onClose={() => setIsContactInfoOpen(false)}
           onToggleMute={onToggleMute}
           onToggleBlock={onToggleBlock}

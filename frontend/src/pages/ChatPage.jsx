@@ -16,6 +16,11 @@ import useAuth from '../hooks/useAuth';
 import useSocket from '../hooks/useSocket';
 import { useCall } from '../context/CallContext';
 import { cn } from '../utils/cn';
+import {
+  getConversationCryptoKey,
+  encryptText,
+  decryptText,
+} from '../utils/cryptoUtils';
 
 export const ChatPage = () => {
   const { chatId } = useParams();
@@ -83,8 +88,33 @@ export const ChatPage = () => {
     messagingService.joinConversation(activeConversationId);
 
     // 2. Fetch message history
-    chatService.getMessages(activeConversationId).then((data) => {
-      setMessages(data);
+    chatService.getMessages(activeConversationId).then(async (data) => {
+      if (!Array.isArray(data)) {
+        setMessages([]);
+        return;
+      }
+      const activeChat = conversations.find((c) => c.id === activeConversationId);
+      const partner = activeChat?.participants?.find((p) => {
+        const pid = typeof p === 'object' ? p._id || p.id : p;
+        return pid !== (user?.id || user?._id);
+      });
+      const partnerId = typeof partner === 'object' ? partner._id || partner.id : partner;
+      const key = await getConversationCryptoKey(activeConversationId, user?.id || user?._id, partnerId);
+
+      if (key) {
+        const decryptedList = await Promise.all(
+          data.map(async (m) => {
+            if (m.text && m.text.startsWith('e2ee:')) {
+              const decrypted = await decryptText(m.text, key);
+              return { ...m, text: decrypted, isE2EE: true };
+            }
+            return m;
+          })
+        );
+        setMessages(decryptedList);
+      } else {
+        setMessages(data);
+      }
     });
 
     // 3. Mark conversation as read
@@ -103,22 +133,35 @@ export const ChatPage = () => {
     return () => {
       messagingService.leaveConversation(activeConversationId);
     };
-  }, [activeConversationId, messagingService]);
+  }, [activeConversationId, messagingService, conversations, user]);
 
   // Setup live Socket.IO event listeners with complete cleanup on unmount
   useEffect(() => {
-    // 1. Inbound messages
-    const unsubMsg = messagingService.onReceiveMessage((incomingMsg) => {
+    // 1. Inbound messages with client-side decryption
+    const unsubMsg = messagingService.onReceiveMessage(async (incomingMsg) => {
+      let displayMsg = incomingMsg;
+      if (incomingMsg.text && incomingMsg.text.startsWith('e2ee:')) {
+        const key = await getConversationCryptoKey(
+          incomingMsg.conversationId,
+          user?.id || user?._id,
+          incomingMsg.senderId
+        );
+        if (key) {
+          const decrypted = await decryptText(incomingMsg.text, key);
+          displayMsg = { ...incomingMsg, text: decrypted, isE2EE: true };
+        }
+      }
+
       if (incomingMsg.conversationId === activeConversationId) {
         setMessages((prev) => {
           // Prevent duplicates by ID or clientMessageId
           const exists = prev.some(
             (m) =>
-              m.id === incomingMsg.id ||
-              (incomingMsg.clientMessageId && m.clientMessageId === incomingMsg.clientMessageId)
+              m.id === displayMsg.id ||
+              (displayMsg.clientMessageId && m.clientMessageId === displayMsg.clientMessageId)
           );
           if (exists) return prev;
-          return [...prev, incomingMsg];
+          return [...prev, displayMsg];
         });
 
         // Automatically acknowledge read status if window is currently focused on this chat
@@ -128,16 +171,16 @@ export const ChatPage = () => {
       // Reconcile sidebar preview & unread badge
       setConversations((prev) => {
         const updated = prev.map((c) => {
-          if (c.id === incomingMsg.conversationId) {
+          if (c.id === displayMsg.conversationId) {
             const isCurrentChat = c.id === activeConversationId;
             return {
               ...c,
               unreadCount: isCurrentChat ? 0 : (c.unreadCount || 0) + 1,
               lastMessage: {
-                text: incomingMsg.text || '📎 Attachment',
-                timestamp: incomingMsg.timestamp,
-                senderId: incomingMsg.senderId,
-                status: incomingMsg.status || 'sent',
+                text: displayMsg.text || '📎 Attachment',
+                timestamp: displayMsg.timestamp,
+                senderId: displayMsg.senderId,
+                status: displayMsg.status || 'sent',
               },
             };
           }
@@ -249,20 +292,34 @@ export const ChatPage = () => {
   };
 
   // Handle sending a message with optimistic UI and service reconciliation
-  const handleSendMessage = (text, attachments = [], replyTo = null) => {
+  const handleSendMessage = async (text, attachments = [], replyTo = null) => {
     if (!activeConversationId) return;
 
-    // 1. Dispatch through messagingService to obtain optimistic representation
+    // Resolve 1-to-1 partner to derive conversation encryption key
+    const partner = activeConversation?.participants?.find((p) => {
+      const pid = typeof p === 'object' ? p._id || p.id : p;
+      return pid !== (user?.id || user?._id);
+    });
+    const partnerId = typeof partner === 'object' ? partner._id || partner.id : partner;
+    const key = await getConversationCryptoKey(activeConversationId, user?.id || user?._id, partnerId);
+
+    // Encrypt payload for transmission and server storage
+    let payloadText = text;
+    if (key && text) {
+      payloadText = await encryptText(text, key);
+    }
+
+    // 1. Dispatch through messagingService to obtain optimistic representation with encrypted text for wire
     const optimisticMsg = messagingService.sendMessage({
       conversationId: activeConversationId,
-      text,
+      text: payloadText,
       attachments,
       replyTo,
       sender: { id: user?.id || 'usr_me_1', name: user?.name || 'You' },
     });
 
-    // 2. Render instantly in local message stream
-    setMessages((prev) => [...prev, optimisticMsg]);
+    // 2. Render instantly in local message stream with original plaintext for user
+    setMessages((prev) => [...prev, { ...optimisticMsg, text, isE2EE: Boolean(key) }]);
 
     // 3. Update conversation preview immediately in sidebar
     setConversations((prev) => {
@@ -469,6 +526,10 @@ export const ChatPage = () => {
         onSelectSection={(section) => {
           if (section === 'settings') {
             navigate('/settings/profile');
+            return;
+          }
+          if (section === 'contacts') {
+            navigate('/contacts');
             return;
           }
           setActiveSection(section);

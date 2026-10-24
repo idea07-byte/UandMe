@@ -120,7 +120,7 @@ export const NewChatModal = ({
                 Start New Direct Conversation
               </h3>
               <p className="text-xs text-charcoal-500 dark:text-charcoal-400">
-                Search verified students, campus teammates, and faculty advisors by name or email.
+                Search verified contacts and team members by name or email.
               </p>
             </div>
           </div>
@@ -145,16 +145,16 @@ export const NewChatModal = ({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onClear={() => setSearchQuery('')}
-                placeholder="Search by full name or university email..."
+                placeholder="Search by full name or email address..."
                 autoFocus
               />
 
               {/* Filter Tabs */}
               <div className="flex items-center gap-1.5 pt-0.5">
                 {[
-                  { id: 'all', label: 'All Registered' },
-                  { id: 'students', label: 'Students' },
-                  { id: 'faculty', label: 'Faculty & Advisors' },
+                  { id: 'all', label: 'All Contacts' },
+                  { id: 'students', label: 'Members' },
+                  { id: 'faculty', label: 'Advisors' },
                 ].map((tab) => (
                   <button
                     key={tab.id}

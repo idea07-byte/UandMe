@@ -20,6 +20,7 @@ import {
   Copy,
 } from 'lucide-react';
 import Avatar from '../common/Avatar';
+import WhatsAppSecurityCodeModal from './WhatsAppSecurityCodeModal';
 import useToast from '../../hooks/useToast';
 import { cn } from '../../utils/cn';
 
@@ -35,6 +36,7 @@ import { cn } from '../../utils/cn';
 export const WhatsAppContactInfoPanel = ({
   contact,
   conversation,
+  currentUserId,
   onClose,
   onToggleMute,
   onToggleBlock,
@@ -47,6 +49,7 @@ export const WhatsAppContactInfoPanel = ({
   const [activeMediaTab, setActiveMediaTab] = useState('media');
   const [disappearingMode, setDisappearingMode] = useState('Off');
   const [showDisappearingOptions, setShowDisappearingOptions] = useState(false);
+  const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
 
   if (!contact && !conversation) return null;
 
@@ -54,7 +57,7 @@ export const WhatsAppContactInfoPanel = ({
   const name = target.name || 'Contact';
   const avatar = target.avatar;
   const phone = target.phone || target.email || '+1 (555) 234-5678';
-  const about = target.about || target.statusMessage || 'Hey there! I am using PulseChat.';
+  const about = target.about || target.statusMessage || 'Hey there! I am using UandMe.';
   const memberCount = target.isGroup ? target.memberCount || 2 : null;
 
   const sampleMedia = [
@@ -289,18 +292,27 @@ export const WhatsAppContactInfoPanel = ({
         </button>
       </div>
 
-      {/* Encryption Notice */}
-      <div className="p-4 border-b border-[#222D34] bg-[#111B21]">
+      {/* Encryption Notice - Interactive Tap to Verify */}
+      <button
+        type="button"
+        onClick={() => setIsSecurityModalOpen(true)}
+        className="w-full p-4 border-b border-[#222D34] bg-[#111B21] hover:bg-[#202C33] transition-colors text-left group"
+      >
         <div className="flex items-start gap-3">
-          <Lock className="w-5 h-5 text-[#8696A0] shrink-0 mt-0.5" />
-          <div>
-            <p className="text-xs font-semibold text-[#E9EDEF]">Encryption</p>
+          <Lock className="w-5 h-5 text-[#00A884] shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
+          <div className="flex-1">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-[#E9EDEF]">Encryption</p>
+              <span className="text-[10px] text-[#00A884] font-medium bg-[#00A884]/10 px-2 py-0.5 rounded-full">
+                Verified E2EE
+              </span>
+            </div>
             <p className="text-xs text-[#8696A0] mt-0.5 leading-relaxed">
-              Messages and calls are end-to-end encrypted. No one outside of this chat, not even PulseChat, can read or listen to them. Tap to verify.
+              Messages and calls are end-to-end encrypted. No one outside of this chat, not even UandMe, can read or listen to them. Tap to view 60-digit safety code.
             </p>
           </div>
         </div>
-      </div>
+      </button>
 
       {/* Danger Zone: Block & Report */}
       <div className="p-3 bg-[#111B21]">
@@ -322,6 +334,15 @@ export const WhatsAppContactInfoPanel = ({
           <span>Report contact</span>
         </button>
       </div>
+
+      {/* WhatsApp 60-Digit Security Verification Modal */}
+      <WhatsAppSecurityCodeModal
+        isOpen={isSecurityModalOpen}
+        onClose={() => setIsSecurityModalOpen(false)}
+        conversationId={conversation?.id || conversation?._id || contact?.id}
+        currentUserId={currentUserId}
+        contactUser={target}
+      />
     </aside>
   );
 };

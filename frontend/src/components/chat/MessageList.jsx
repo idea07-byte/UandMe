@@ -78,7 +78,7 @@ export const MessageList = ({
         <div className="flex justify-center my-3 select-none px-4">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-[#182229] text-[12px] text-[#FFEECD]/80 text-center max-w-md shadow-sm border border-[#222D34]">
             <Lock className="w-3.5 h-3.5 text-[#FFD279] shrink-0" />
-            <span>Messages are end-to-end encrypted. No one outside of this chat can read them.</span>
+            <span>Messages and calls are end-to-end encrypted. No one outside of this chat, not even UandMe, can read or listen to them.</span>
           </div>
         </div>
 

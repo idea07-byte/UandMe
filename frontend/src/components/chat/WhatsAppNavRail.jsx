@@ -3,7 +3,7 @@ import {
   MessageSquare,
   Phone,
   CircleDashed,
-  Users2,
+  Users,
   Archive,
   Star,
   Settings,
@@ -76,9 +76,9 @@ export const WhatsAppNavRail = ({
       dot: hasUnreadStatus,
     },
     {
-      id: 'communities',
-      label: 'Communities',
-      icon: Users2,
+      id: 'contacts',
+      label: 'Contacts',
+      icon: Users,
     },
   ];
 
