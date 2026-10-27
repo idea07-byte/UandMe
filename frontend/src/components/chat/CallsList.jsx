@@ -13,13 +13,14 @@ import {
   Heart,
   X,
   PhoneForwarded,
+  Hash,
 } from 'lucide-react';
 import Avatar from '../common/Avatar';
 import { MOCK_CALLS } from '../../services/mockWhatsAppExtras';
 import useToast from '../../hooks/useToast';
 import { cn } from '../../utils/cn';
 
-export const CallsList = ({ onSelectCall, selectedCallId, onStartCall }) => {
+export const CallsList = ({ onSelectCall, selectedCallId, onStartCall, onOpenDialpad }) => {
   const [search, setSearch] = useState('');
   const [calls, setCalls] = useState(MOCK_CALLS);
   const toast = useToast();
@@ -41,10 +42,19 @@ export const CallsList = ({ onSelectCall, selectedCallId, onStartCall }) => {
       {/* Calls Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-[#222D34]">
         <h2 className="text-xl font-bold text-[#E9EDEF]">Calls</h2>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <button
             type="button"
-            onClick={() => toast.info('Select a contact to start a new call.')}
+            onClick={onOpenDialpad}
+            className="p-2 rounded-full text-[#8696A0] hover:text-[#00A884] hover:bg-[#202C33] transition-colors"
+            title="Open Dialpad"
+            aria-label="Open Dialpad"
+          >
+            <Hash className="w-5 h-5" />
+          </button>
+          <button
+            type="button"
+            onClick={onOpenDialpad || (() => toast.info('Select a contact to start a new call.'))}
             className="p-2 rounded-full text-[#8696A0] hover:text-[#E9EDEF] hover:bg-[#202C33] transition-colors"
             title="New call"
           >

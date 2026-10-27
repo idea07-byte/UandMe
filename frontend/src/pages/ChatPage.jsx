@@ -10,6 +10,7 @@ import StatusList from '../components/chat/StatusList';
 import StatusEmptyState from '../components/chat/StatusEmptyState';
 import CommunitiesList from '../components/chat/CommunitiesList';
 import CommunitiesEmptyState from '../components/chat/CommunitiesEmptyState';
+import WhatsAppDialpadModal from '../components/chat/WhatsAppDialpadModal';
 import chatService from '../services/chatService';
 import useToast from '../hooks/useToast';
 import useAuth from '../hooks/useAuth';
@@ -32,6 +33,9 @@ export const ChatPage = () => {
 
   // Navigation rail section ('chats' | 'calls' | 'status' | 'communities' | 'archived' | 'starred' | 'settings')
   const [activeSection, setActiveSection] = useState('chats');
+
+  // WhatsApp Dialpad Modal State
+  const [isDialpadOpen, setIsDialpadOpen] = useState(false);
 
   // Conversation list state
   const [conversations, setConversations] = useState([]);
@@ -479,6 +483,7 @@ export const ChatPage = () => {
     if (!c) return null;
     const currentUid = user?.id || user?._id;
     const recipientId =
+      c.recipientId ||
       c.partnerId ||
       c._id ||
       c.id ||
@@ -493,9 +498,9 @@ export const ChatPage = () => {
 
     return {
       recipientId: typeof recipientId === 'object' ? recipientId._id || recipientId.id : recipientId,
-      recipientName: c.name || c.username || 'Contact',
-      recipientAvatar: c.avatar || null,
-      conversationId: c.id || c._id,
+      recipientName: c.recipientName || c.name || c.username || 'Contact',
+      recipientAvatar: c.recipientAvatar || c.avatar || null,
+      conversationId: c.conversationId || c.id || c._id,
     };
   };
 
@@ -574,6 +579,7 @@ export const ChatPage = () => {
         {activeSection === 'calls' && (
           <CallsList
             onSelectCall={(call) => toast.info(`Call history for ${call.name}`)}
+            onOpenDialpad={() => setIsDialpadOpen(true)}
             onStartCall={(contact, type) => {
               if (type === 'video') {
                 handleStartVideoCall(contact);
@@ -685,13 +691,14 @@ export const ChatPage = () => {
           )
         ) : activeSection === 'calls' ? (
           <CallsEmptyState
+            onOpenDialpad={() => setIsDialpadOpen(true)}
             onStartCall={() => {
               if (activeConversation) {
                 handleStartVoiceCall(activeConversation);
               } else if (conversations.length > 0) {
                 handleStartVoiceCall(conversations[0]);
               } else {
-                toast.info('Select a contact from your list to place an audio or video call.');
+                setIsDialpadOpen(true);
               }
             }}
           />
@@ -703,6 +710,20 @@ export const ChatPage = () => {
           <ChatEmptyState onNewChat={() => navigate('/contacts')} />
         )}
       </div>
+
+      {/* WhatsApp Dialpad Modal */}
+      <WhatsAppDialpadModal
+        isOpen={isDialpadOpen}
+        onClose={() => setIsDialpadOpen(false)}
+        contacts={contacts}
+        onStartCall={(recipient, type) => {
+          if (type === 'video') {
+            handleStartVideoCall(recipient);
+          } else {
+            handleStartVoiceCall(recipient);
+          }
+        }}
+      />
     </div>
   );
 };

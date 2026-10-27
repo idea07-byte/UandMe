@@ -16,7 +16,7 @@ import useToast from '../../hooks/useToast';
  *  Start call, New call link, Call a number, Schedule call.
  *  Footer: calls are end-to-end encrypted."
  */
-export const CallsEmptyState = ({ onStartCall }) => {
+export const CallsEmptyState = ({ onStartCall, onOpenDialpad }) => {
   const toast = useToast();
 
   const actions = [
@@ -45,7 +45,13 @@ export const CallsEmptyState = ({ onStartCall }) => {
       label: 'Call a number',
       icon: Phone,
       color: 'bg-[#202C33] text-[#E9EDEF] hover:bg-[#2A3942]',
-      action: () => toast.info('Dialpad: enter phone number or student campus extension.'),
+      action: () => {
+        if (onOpenDialpad) {
+          onOpenDialpad();
+        } else {
+          toast.info('Opening dialpad...');
+        }
+      },
     },
     {
       id: 'schedule',

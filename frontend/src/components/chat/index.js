@@ -11,3 +11,4 @@ export { ChatEmptyState } from './ChatEmptyState';
 export { ChatArea } from './ChatArea';
 export { ConnectionStatusBadge } from './ConnectionStatusBadge';
 export { NewChatModal } from './NewChatModal';
+export { WhatsAppDialpadModal } from './WhatsAppDialpadModal';
