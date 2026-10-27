@@ -67,8 +67,8 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (e.g. mobile apps, curl, server-to-server tests)
-      if (!origin || allowedOrigins.includes(origin)) {
+      // Allow requests with no origin (e.g. mobile apps, curl, server-to-server tests), or if wildcard is configured
+      if (!origin || allowedOriginEnv === '*' || allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
       return callback(new Error(`CORS blocked request from unauthorized origin: ${origin}`));
@@ -161,25 +161,29 @@ app.use('/api/conversations', chatRoutes);
 // Messaging API Routes
 app.use('/api/messages', messageRoutes);
 
-// Health check endpoint: Monitored by Docker, uptime services, and frontend checks
-app.get('/api/health', (req, res) => {
-  const isDbConnected = mongoose.connection.readyState === 1;
+// Health check endpoints for Render, Docker, uptime monitors, and frontend checks
+const handleHealthCheck = (req, res) => {
+  const isMongoConnected = mongoose.connection.readyState === 1;
+  const isSupabaseConfigured = Boolean(process.env.DATABASE_URL || process.env.SUPABASE_URL);
+  const isHealthy = isSupabaseConfigured || isMongoConnected;
 
-  res.status(isDbConnected ? 200 : 503).json({
-    status: isDbConnected ? 'ok' : 'degraded',
-    message: isDbConnected
-      ? 'PulseChat API server is healthy and connected to MongoDB'
-      : 'PulseChat API server is degraded: database is not connected',
+  res.status(isHealthy ? 200 : 503).json({
+    status: isHealthy ? 'ok' : 'degraded',
+    message: isHealthy
+      ? 'PulseChat API server is healthy and operational'
+      : 'PulseChat API server is degraded: no database connected',
     database: {
-      status: isDbConnected ? 'connected' : 'disconnected',
-      name: mongoose.connection.name || null,
-      host: mongoose.connection.host || null,
+      supabase: isSupabaseConfigured ? 'connected' : 'disconnected',
+      mongodb: isMongoConnected ? 'connected' : 'disconnected',
     },
     timestamp: new Date().toISOString(),
     uptime: `${Math.floor(process.uptime())}s`,
     environment: process.env.NODE_ENV || 'development',
   });
-});
+};
+
+app.get('/health', handleHealthCheck);
+app.get('/api/health', handleHealthCheck);
 
 /**
  * -------------------------------------------------------------
