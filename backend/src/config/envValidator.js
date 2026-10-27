@@ -37,17 +37,19 @@ export const validateEnv = () => {
     }
   }
 
-  // 2. MONGODB_URI check
+  // 2. Database check (Supabase PostgreSQL / MongoDB)
   let mongoUri = process.env.MONGODB_URI;
-  if (!mongoUri && NODE_ENV !== 'production') {
+  const dbUrl = process.env.DATABASE_URL;
+
+  if (!mongoUri && !dbUrl && NODE_ENV !== 'production') {
     mongoUri = 'mongodb://127.0.0.1:27017/pulsechat';
     process.env.MONGODB_URI = mongoUri;
-    warnings.push('MONGODB_URI was not set; using local development default: mongodb://127.0.0.1:27017/pulsechat');
+    warnings.push('Database URI not set; using local development default: mongodb://127.0.0.1:27017/pulsechat');
   }
 
-  if (!mongoUri) {
-    errors.push('MONGODB_URI is required but not configured in environment variables');
-  } else if (!mongoUri.startsWith('mongodb://') && !mongoUri.startsWith('mongodb+srv://')) {
+  if (!mongoUri && !dbUrl) {
+    errors.push('Database configuration required: Please configure DATABASE_URL (Supabase) or MONGODB_URI');
+  } else if (mongoUri && !mongoUri.startsWith('mongodb://') && !mongoUri.startsWith('mongodb+srv://')) {
     errors.push('MONGODB_URI must start with "mongodb://" or "mongodb+srv://"');
   }
 
