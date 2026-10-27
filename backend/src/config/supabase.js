@@ -39,14 +39,17 @@ export const supabaseAdmin = (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY)
 /**
  * Direct PostgreSQL Connection Pool for SQL queries and migrations.
  */
-export const pgPool = new Pool({
-  connectionString: DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false,
-  },
-  max: 10,
-  idleTimeoutMillis: 30000,
-});
+export const pgPool = DATABASE_URL
+  ? new Pool({
+      connectionString: DATABASE_URL,
+      ssl: {
+        rejectUnauthorized: false,
+      },
+      max: 10,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 10000,
+    })
+  : null;
 
 /**
  * Test connectivity to both Supabase API and direct PostgreSQL database.
@@ -62,7 +65,7 @@ export const testSupabaseConnection = async () => {
 
   try {
     // 1. Test PostgreSQL connection
-    if (DATABASE_URL) {
+    if (DATABASE_URL && pgPool) {
       const client = await pgPool.connect();
       try {
         const res = await client.query('SELECT NOW() as current_time, version() as db_version;');

@@ -50,12 +50,12 @@ const startServer = async () => {
   io = initSocket(httpServer);
 
   // Start HTTP and WebSocket server once database connection is established
-  httpServer.listen(PORT, () => {
+  httpServer.listen(PORT, '0.0.0.0', () => {
     console.log('====================================================');
     console.log(`🚀 PulseChat Backend API & Socket.IO running!`);
-    console.log(`📡 URL:         http://localhost:${PORT}`);
-    console.log(`🩺 Health API:  http://localhost:${PORT}/api/health`);
-    console.log(`🔌 WebSockets:  ws://localhost:${PORT}`);
+    console.log(`📡 URL:         http://0.0.0.0:${PORT}`);
+    console.log(`🩺 Health API:  http://0.0.0.0:${PORT}/api/health`);
+    console.log(`🔌 WebSockets:  ws://0.0.0.0:${PORT}`);
     console.log(`🌿 Environment: ${NODE_ENV}`);
     console.log('====================================================');
   });

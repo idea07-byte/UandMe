@@ -23,12 +23,26 @@ export const connectDB = async () => {
       if (sbResult.postgresDb) {
         console.log('====================================================');
         console.log('🐘 Connected to Supabase PostgreSQL successfully!');
-        console.log(`📍 Host: db.${process.env.SUPABASE_PROJECT_ID || 'supabase'}.co:5432`);
+        console.log(`📍 Host: db.${process.env.SUPABASE_PROJECT_ID || 'supabase'}.co (Pooler: aws-0-ap-southeast-1)`);
         console.log('====================================================');
         supabaseConnected = true;
+      } else if (sbResult.supabaseApi) {
+        console.log('====================================================');
+        console.log('⚡ Connected to Supabase REST API successfully!');
+        console.log('====================================================');
+        supabaseConnected = true;
+      } else {
+        console.warn('⚠️  Supabase PostgreSQL check returned:', sbResult.error || 'not reachable');
+        if (dbUrl || process.env.SUPABASE_URL) {
+          // If explicitly configured, do not abort process - allow server to start
+          supabaseConnected = true;
+        }
       }
     } catch (sbErr) {
       console.warn('⚠️  Supabase health check notice:', sbErr.message);
+      if (dbUrl || process.env.SUPABASE_URL) {
+        supabaseConnected = true;
+      }
     }
   }
 
