@@ -17,6 +17,7 @@ import LoadingSpinner from '../components/common/LoadingSpinner';
 import useAuth from '../hooks/useAuth';
 import useToast from '../hooks/useToast';
 import { validateEmail } from '../utils/validators';
+import { APP_NAME } from '../utils/constants';
 
 export const EmailVerificationPage = () => {
   const [searchParams] = useSearchParams();
@@ -83,7 +84,7 @@ export const EmailVerificationPage = () => {
           </div>
           <div>
             <h1 className="text-xl font-black tracking-tight text-charcoal-900 dark:text-white leading-tight">
-              Pulse<span className="text-primary-600 dark:text-primary-400">Chat</span>
+              u<span className="text-primary-600 dark:text-primary-400">andi</span>
             </h1>
             <p className="text-[11px] font-semibold text-charcoal-400 uppercase tracking-wider">
               Email Verification
