@@ -4,6 +4,9 @@ import { testSupabaseConnection } from './supabase.js';
 
 dotenv.config();
 
+// Disable Mongoose command buffering so queries never hang for 10 seconds if MongoDB is disconnected
+mongoose.set('bufferCommands', false);
+
 /**
  * Connect to database services (Supabase PostgreSQL and optional MongoDB).
  * Ensures server starts smoothly in production cloud deployments like Render.

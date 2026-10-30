@@ -61,9 +61,9 @@ services:
         destination: /index.html
     envVars:
       - key: VITE_API_URL
-        value: https://uandme-backend.onrender.com/api
+        value: https://uandme-8vka.onrender.com/api
       - key: VITE_SOCKET_URL
-        value: https://uandme-backend.onrender.com
+        value: https://uandme-8vka.onrender.com
       - key: VITE_SUPABASE_PROJECT_ID
         value: gujrjohtfuaadxiikkju
       - key: VITE_SUPABASE_URL
@@ -71,7 +71,7 @@ services:
       - key: VITE_SUPABASE_ANON_KEY
         value: sb_publishable_IoiKJ60KZxGNPBqQ72U16Q_Dx1R1xJn
       - key: VITE_ENABLE_MOCK_FALLBACK
-        value: "true"
+        value: "false"
       - key: VITE_SOCKET_RECONNECT_ATTEMPTS
         value: "5"
       - key: VITE_SOCKET_RECONNECT_DELAY

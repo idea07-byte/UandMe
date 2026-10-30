@@ -1,8 +1,13 @@
+import mongoose from 'mongoose';
 import User from '../models/User.js';
 import {
   isValidObjectId,
   validateUpdateProfileInput,
 } from '../utils/validators.js';
+import { supabaseService } from '../services/supabaseService.js';
+import { supabaseAdmin } from '../config/supabase.js';
+
+const isUsingSupabase = () => mongoose.connection.readyState !== 1 && Boolean(supabaseAdmin);
 
 /**
  * -------------------------------------------------------------
@@ -20,6 +25,31 @@ export const getUsers = async (req, res, next) => {
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 10));
     const skip = (page - 1) * limit;
+
+    if (isUsingSupabase()) {
+      const { users, total } = await supabaseService.listUsers(req.user._id, {
+        page,
+        limit,
+        status: req.query.status,
+        department: req.query.department,
+      });
+      const totalPages = Math.ceil(total / limit) || 1;
+      return res.status(200).json({
+        status: 'success',
+        results: users.length,
+        pagination: {
+          page,
+          limit,
+          totalPages,
+          totalUsers: total,
+          hasNextPage: page < totalPages,
+          hasPrevPage: page > 1,
+        },
+        data: {
+          users,
+        },
+      });
+    }
 
     // 2. Build filter (exclude current user so users don't see themselves in contact lists)
     const filter = {
@@ -111,6 +141,20 @@ export const searchUsers = async (req, res, next) => {
     // 2. Sensible result limits (default 10, max 20)
     const limit = Math.min(20, Math.max(1, parseInt(req.query.limit, 10) || 10));
 
+    if (isUsingSupabase()) {
+      const { users } = await supabaseService.listUsers(req.user._id, {
+        limit,
+        search: sanitized,
+      });
+      return res.status(200).json({
+        status: 'success',
+        results: users.length,
+        data: {
+          users,
+        },
+      });
+    }
+
     // 3. Construct privacy-preserving query filter
     // Always exclude the authenticated user
     const filter = {
@@ -174,7 +218,12 @@ export const getUserById = async (req, res, next) => {
     }
 
     // 2. Query user document by ID
-    const user = await User.findById(id).select('-password');
+    let user;
+    if (isUsingSupabase()) {
+      user = await supabaseService.findUserById(id);
+    } else {
+      user = await User.findById(id).select('-password');
+    }
 
     // 3. Handle non-existent user
     if (!user) {
@@ -222,14 +271,19 @@ export const updateMe = async (req, res, next) => {
     }
 
     // 2. Perform atomic update strictly on authenticated user's ID
-    const updatedUser = await User.findByIdAndUpdate(
-      req.user._id,
-      { $set: sanitizedUpdates },
-      {
-        returnDocument: 'after', // Return modified document (modern Mongoose syntax)
-        runValidators: true, // Run schema validation on updated fields
-      }
-    ).select('-password');
+    let updatedUser;
+    if (isUsingSupabase()) {
+      updatedUser = await supabaseService.updateUser(req.user._id, sanitizedUpdates);
+    } else {
+      updatedUser = await User.findByIdAndUpdate(
+        req.user._id,
+        { $set: sanitizedUpdates },
+        {
+          returnDocument: 'after', // Return modified document (modern Mongoose syntax)
+          runValidators: true, // Run schema validation on updated fields
+        }
+      ).select('-password');
+    }
 
     if (!updatedUser) {
       return res.status(404).json({

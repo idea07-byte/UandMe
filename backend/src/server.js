@@ -51,12 +51,16 @@ const startServer = async () => {
 
   // Start HTTP and WebSocket server once database connection is established
   httpServer.listen(PORT, '0.0.0.0', () => {
+    const renderBackend = process.env.RENDER_EXTERNAL_URL || 'https://uandme-8vka.onrender.com';
     console.log('====================================================');
     console.log(`🚀 PulseChat Backend API & Socket.IO running!`);
-    console.log(`📡 URL:         http://0.0.0.0:${PORT}`);
-    console.log(`🩺 Health API:  http://0.0.0.0:${PORT}/api/health`);
-    console.log(`🔌 WebSockets:  ws://0.0.0.0:${PORT}`);
-    console.log(`🌿 Environment: ${NODE_ENV}`);
+    console.log(`💻 Local Backend:   http://localhost:${PORT}`);
+    console.log(`💻 Local Frontend:  http://localhost:5173`);
+    console.log(`🌐 Render Web App:  https://uandme-frontend.onrender.com`);
+    console.log(`🌐 Render Backend:  ${renderBackend}`);
+    console.log(`🩺 Health API:      http://localhost:${PORT}/api/health`);
+    console.log(`🔌 WebSockets:      ws://localhost:${PORT}`);
+    console.log(`🌿 Environment:     ${NODE_ENV}`);
     console.log('====================================================');
   });
 };

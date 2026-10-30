@@ -20,10 +20,14 @@ export const normalizeEmail = (email) => {
  * @returns {boolean} True if valid 24-character hex ObjectId
  */
 export const isValidObjectId = (id) => {
+  if (typeof id !== 'string') return false;
+  const trimmed = id.trim();
+  if (!trimmed) return false;
+  // Accepts 24-char MongoDB ObjectIds, standard UUIDs, and alphanumeric/underscored entity IDs
   return (
-    typeof id === 'string' &&
-    mongoose.Types.ObjectId.isValid(id) &&
-    new mongoose.Types.ObjectId(id).toString() === id
+    mongoose.Types.ObjectId.isValid(trimmed) ||
+    /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(trimmed) ||
+    /^[a-zA-Z0-9_\-]+$/.test(trimmed)
   );
 };
 

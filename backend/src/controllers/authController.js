@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import User from '../models/User.js';
 import { generateToken } from '../utils/generateToken.js';
 import {
@@ -5,6 +6,10 @@ import {
   validateLoginInput,
   normalizeEmail,
 } from '../utils/validators.js';
+import { supabaseService } from '../services/supabaseService.js';
+import { supabaseAdmin } from '../config/supabase.js';
+
+const isUsingSupabase = () => mongoose.connection.readyState !== 1 && Boolean(supabaseAdmin);
 
 /**
  * @desc    Register a new user account
@@ -29,7 +34,32 @@ export const register = async (req, res, next) => {
     // 2. Normalize email address
     const normalizedEmail = normalizeEmail(email);
 
-    // 3. Reject duplicate email registrations
+    // If using Supabase directly (when MongoDB is not connected)
+    if (isUsingSupabase()) {
+      const existingUser = await supabaseService.findUserByEmail(normalizedEmail);
+      if (existingUser) {
+        return res.status(409).json({
+          status: 'error',
+          message: 'An account with this email address already exists',
+        });
+      }
+
+      const user = await supabaseService.createUser({
+        name: name.trim(),
+        email: normalizedEmail,
+        password,
+      });
+
+      const token = generateToken(user._id);
+      return res.status(201).json({
+        status: 'success',
+        message: 'Account created successfully',
+        user: user.toJSON(),
+        token,
+      });
+    }
+
+    // 3. Reject duplicate email registrations (MongoDB)
     const existingUser = await User.findOne({ email: normalizedEmail });
     if (existingUser) {
       return res.status(409).json({
@@ -82,12 +112,30 @@ export const login = async (req, res, next) => {
     // 2. Normalize email
     const normalizedEmail = normalizeEmail(rawEmail);
 
-    // 3. Find user and explicitly include password field (which is select: false)
+    // If using Supabase directly (when MongoDB is not connected)
+    if (isUsingSupabase()) {
+      const user = await supabaseService.findUserByEmail(normalizedEmail);
+      if (!user || !(await user.comparePassword(password))) {
+        return res.status(401).json({
+          status: 'error',
+          message: 'Invalid email or password',
+        });
+      }
+
+      const token = generateToken(user._id);
+      return res.status(200).json({
+        status: 'success',
+        message: 'Logged in successfully',
+        user: user.toJSON(),
+        token,
+      });
+    }
+
+    // 3. Find user and explicitly include password field (MongoDB)
     const user = await User.findOne({ email: normalizedEmail }).select('+password');
 
     // 4. Check if user exists and verify password hash with bcrypt
     if (!user || !(await user.comparePassword(password))) {
-      // Intentionally generic message to prevent user enumeration attacks
       return res.status(401).json({
         status: 'error',
         message: 'Invalid email or password',

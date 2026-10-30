@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Conversation from '../models/Conversation.js';
 import Message from '../models/Message.js';
 import User from '../models/User.js';
@@ -6,6 +7,10 @@ import {
   validateDirectChatInput,
   validateGroupChatInput,
 } from '../utils/validators.js';
+import { supabaseService } from '../services/supabaseService.js';
+import { supabaseAdmin } from '../config/supabase.js';
+
+const isUsingSupabase = () => mongoose.connection.readyState !== 1 && Boolean(supabaseAdmin);
 
 /**
  * Access an existing 1-on-1 direct conversation or create a new one.
@@ -28,6 +33,11 @@ export const accessOrCreateChat = async (req, res, next) => {
     }
 
     const targetUserId = validation.targetUserId;
+
+    if (isUsingSupabase()) {
+      const chat = await supabaseService.createOrGetDirectChat(req.user._id, targetUserId);
+      return res.status(200).json(chat);
+    }
 
     // 2. Verify target user exists
     const targetUser = await User.findById(targetUserId);
@@ -100,6 +110,11 @@ export const createGroupChat = async (req, res, next) => {
 
     const { name, participants, avatar } = validation;
 
+    if (isUsingSupabase()) {
+      const group = await supabaseService.createGroupChat(req.user._id, { name, avatar, participants });
+      return res.status(201).json(group);
+    }
+
     // 2. Verify all participants exist in database
     const usersCount = await User.countDocuments({ _id: { $in: participants } });
     if (usersCount !== participants.length) {
@@ -143,6 +158,11 @@ export const getUserConversations = async (req, res, next) => {
   try {
     const currentUserId = req.user._id;
     const { filter = 'all', search = '', view = 'chats' } = req.query;
+
+    if (isUsingSupabase()) {
+      const convs = await supabaseService.getUserConversations(currentUserId, { filter, search, view });
+      return res.status(200).json(convs);
+    }
 
     // Base query: conversations where the current user is a participant
     const query = { participants: currentUserId };
@@ -244,6 +264,17 @@ export const getConversationById = async (req, res, next) => {
       });
     }
 
+    if (isUsingSupabase()) {
+      const conv = await supabaseService.getConversationById(id, req.user._id);
+      if (!conv) {
+        return res.status(404).json({
+          status: 'error',
+          message: 'Conversation not found',
+        });
+      }
+      return res.status(200).json(conv);
+    }
+
     const conversation = await Conversation.findById(id)
       .populate('participants', 'name email avatar about department status lastSeen role')
       .populate('lastMessage.sender', 'name email avatar')
@@ -306,6 +337,23 @@ export const updateConversation = async (req, res, next) => {
         status: 'error',
         message: 'Invalid conversation ID format: Must be a valid 24-character hexadecimal ObjectId',
       });
+    }
+
+    if (isUsingSupabase()) {
+      const updated = await supabaseService.updateConversationFlags(id, req.user._id, {
+        pinned: req.body.pinned !== undefined ? req.body.pinned : req.body.isPinned,
+        isMuted: req.body.isMuted,
+        isArchived: req.body.isArchived,
+        name: req.body.name,
+        avatar: req.body.avatar,
+      });
+      if (!updated) {
+        return res.status(404).json({
+          status: 'error',
+          message: 'Conversation not found',
+        });
+      }
+      return res.status(200).json(updated);
     }
 
     const conversation = await Conversation.findById(id);

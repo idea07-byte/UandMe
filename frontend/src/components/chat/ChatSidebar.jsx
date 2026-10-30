@@ -219,7 +219,7 @@ export const ChatSidebar = ({
                     {user?.email || 'alex.morgan@pulsechat.io'}
                   </p>
                   <span className="inline-block text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold mt-0.5">
-                    {user?.isDevMock ? 'Dev Sandbox User' : 'Online'}
+                    Online
                   </span>
                 </div>
               </div>

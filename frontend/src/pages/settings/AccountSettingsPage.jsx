@@ -224,7 +224,7 @@ export const AccountSettingsPage = () => {
         onClose={() => setIsLogoutModalOpen(false)}
         onConfirm={handleConfirmLogout}
         title="Sign Out of PulseChat?"
-        message="Are you sure you want to log out? You will need to enter your university credentials or demo sandbox access to sign in again."
+        message="Are you sure you want to log out? You will need to enter your credentials to sign in again."
         confirmText="Sign Out"
         variant="primary"
         icon={LogOut}

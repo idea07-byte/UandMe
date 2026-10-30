@@ -99,7 +99,7 @@ export const Navbar = () => {
                   {user.name}
                 </p>
                 <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
-                  {user.isDevMock ? 'Dev Sandbox' : 'Active'}
+                  Active
                 </p>
               </div>
             </NavLink>

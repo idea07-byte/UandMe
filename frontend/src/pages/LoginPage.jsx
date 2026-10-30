@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { MessageSquare, Mail, Lock, ArrowRight, AlertCircle, Sparkles } from 'lucide-react';
+import { MessageSquare, Mail, Lock, ArrowRight, AlertCircle } from 'lucide-react';
 import Input from '../components/common/Input';
 import Button from '../components/common/Button';
 import useAuth from '../hooks/useAuth';
@@ -12,7 +12,7 @@ export const LoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const toast = useToast();
-  const { login, devLogin } = useAuth();
+  const { login } = useAuth();
 
   // Initialize fields, restoring remembered email if present
   const [email, setEmail] = useState('');
@@ -78,14 +78,6 @@ export const LoginPage = () => {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  // Explicit, isolated Developer Preview login
-  const handleDevPreview = () => {
-    const demoEmail = email.trim() || 'alex.morgan@uandme.io';
-    devLogin(demoEmail);
-    toast.info('Signed in using Development Preview Mode (Local Sandbox).', 'Dev Mode Active');
-    navigate('/chat', { replace: true });
   };
 
   return (
@@ -203,33 +195,6 @@ export const LoginPage = () => {
           Sign In
         </Button>
       </form>
-
-      {/* Clean Dev Mode Testing Box */}
-      <div className="mt-6 pt-5 border-t border-charcoal-100 dark:border-charcoal-800/80">
-        <div className="p-3.5 rounded-2xl bg-charcoal-50 dark:bg-charcoal-800/50 border border-charcoal-200/60 dark:border-charcoal-700/60 space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-charcoal-500 dark:text-charcoal-400 flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-primary-500" />
-              Development Preview Mode
-            </span>
-            <span className="text-[10px] bg-primary-100 dark:bg-primary-950 text-primary-700 dark:text-primary-300 font-bold px-1.5 py-0.5 rounded">
-              Sandbox
-            </span>
-          </div>
-          <p className="text-[11px] text-charcoal-500 dark:text-charcoal-400 leading-snug">
-            Backend not running yet? Use one-click sandbox sign-in to test UI components and chat screens without database connection.
-          </p>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            fullWidth
-            onClick={handleDevPreview}
-          >
-            Enter Dev Sandbox Mode
-          </Button>
-        </div>
-      </div>
 
       {/* Registration Link */}
       <p className="text-center text-xs text-charcoal-500 dark:text-charcoal-400 mt-6">

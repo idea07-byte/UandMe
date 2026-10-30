@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { MessageSquare, User, Mail, Lock, ArrowRight, AlertCircle, Sparkles } from 'lucide-react';
+import { MessageSquare, User, Mail, Lock, ArrowRight, AlertCircle } from 'lucide-react';
 import Input from '../components/common/Input';
 import Button from '../components/common/Button';
 import PasswordStrengthIndicator from '../components/forms/PasswordStrengthIndicator';
@@ -16,7 +16,7 @@ import {
 export const RegisterPage = () => {
   const navigate = useNavigate();
   const toast = useToast();
-  const { register, devRegister } = useAuth();
+  const { register } = useAuth();
 
   // Form field states
   const [name, setName] = useState('');
@@ -107,14 +107,6 @@ export const RegisterPage = () => {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleDevPreviewRegister = () => {
-    const validName = name.trim() || 'Jordan Miller';
-    const validEmail = email.trim() || 'jordan.miller@uandme.io';
-    devRegister({ name: validName, email: validEmail });
-    toast.info('Created profile in Sandbox Preview Mode.', 'Dev Mode Active');
-    navigate('/chat', { replace: true });
   };
 
   return (
@@ -305,33 +297,6 @@ export const RegisterPage = () => {
           Create Free Account
         </Button>
       </form>
-
-      {/* Dev Mode Sandbox Option */}
-      <div className="mt-6 pt-5 border-t border-charcoal-100 dark:border-charcoal-800/80">
-        <div className="p-3.5 rounded-2xl bg-charcoal-50 dark:bg-charcoal-800/50 border border-charcoal-200/60 dark:border-charcoal-700/60 space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-charcoal-500 dark:text-charcoal-400 flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-primary-500" />
-              Development Sandbox
-            </span>
-            <span className="text-[10px] bg-primary-100 dark:bg-primary-950 text-primary-700 dark:text-primary-300 font-bold px-1.5 py-0.5 rounded">
-              Local Test
-            </span>
-          </div>
-          <p className="text-[11px] text-charcoal-500 dark:text-charcoal-400 leading-snug">
-            Need to test registration without a running backend API? Use local sandbox registration.
-          </p>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            fullWidth
-            onClick={handleDevPreviewRegister}
-          >
-            Create Sandbox Account
-          </Button>
-        </div>
-      </div>
 
       {/* Link to Login */}
       <p className="text-center text-xs text-charcoal-500 dark:text-charcoal-400 mt-6">

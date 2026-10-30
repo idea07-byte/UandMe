@@ -2,6 +2,10 @@ import mongoose from 'mongoose';
 import Message from '../models/Message.js';
 import Conversation from '../models/Conversation.js';
 import { isValidObjectId } from '../utils/validators.js';
+import { supabaseService } from './supabaseService.js';
+import { supabaseAdmin } from '../config/supabase.js';
+
+const isUsingSupabase = () => mongoose.connection.readyState !== 1 && Boolean(supabaseAdmin);
 
 /**
  * Enterprise Message Service.
@@ -48,6 +52,16 @@ class MessageService {
       const err = new Error('Message text cannot exceed 2000 characters');
       err.statusCode = 400;
       throw err;
+    }
+
+    if (isUsingSupabase()) {
+      return await supabaseService.sendMessage({
+        conversationId,
+        senderId,
+        text: trimmedText,
+        attachments: safeAttachments,
+        clientMessageId,
+      });
     }
 
     // 3. Verify conversation exists
@@ -118,6 +132,12 @@ class MessageService {
       throw err;
     }
 
+    const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 50, 1), 100);
+
+    if (isUsingSupabase()) {
+      return await supabaseService.getMessages(conversationId, { limit: safeLimit, before });
+    }
+
     // 2. Verify conversation exists and user is a participant
     const conversation = await Conversation.findById(conversationId);
     if (!conversation) {
@@ -140,7 +160,6 @@ class MessageService {
     }
 
     // 3. Build query and cursor constraints
-    const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 50, 1), 100);
     const query = { conversationId };
 
     let cursorDate = null;

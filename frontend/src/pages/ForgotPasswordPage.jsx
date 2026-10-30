@@ -43,20 +43,12 @@ export const ForgotPasswordPage = () => {
       setIsSubmitted(true);
       toast.success(`Password reset instructions sent to ${email}`, 'Email Dispatched');
     } catch (err) {
-      // In dev mode or backend offline, inform the user and provide option to simulate
-      setServerError(err.message || 'Could not send reset email. Backend is offline.');
-      toast.error('Backend offline. You can test the success confirmation state in Dev Mode.');
+      const errMsg = err.message || 'Could not send reset email. Please try again.';
+      setServerError(errMsg);
+      toast.error(errMsg);
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleDevSimulate = () => {
-    const demoEmail = email.trim() || 'student@university.edu';
-    setEmail(demoEmail);
-    authService.dev.simulateForgotPassword(demoEmail);
-    setIsSubmitted(true);
-    toast.info('Simulated password reset email sent in Sandbox Mode.', 'Dev Mode');
   };
 
   return (
@@ -182,20 +174,6 @@ export const ForgotPasswordPage = () => {
           >
             Send Reset Link
           </Button>
-
-          {/* Sandbox simulation button */}
-          <div className="pt-2">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              fullWidth
-              onClick={handleDevSimulate}
-              className="text-xs text-charcoal-500 hover:text-charcoal-700"
-            >
-              🧪 Simulate Success Confirmation (Frontend Demo)
-            </Button>
-          </div>
         </form>
       )}
 

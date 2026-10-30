@@ -65,17 +65,12 @@ export const ResetPasswordPage = () => {
       setIsSuccess(true);
       toast.success('Your password has been reset successfully!', 'Password Changed');
     } catch (err) {
-      setServerError(err.message || 'Password reset failed. Backend may be offline.');
-      toast.error('Reset request failed. Backend offline or token expired.');
+      const errMsg = err.message || 'Password reset failed. Please try again.';
+      setServerError(errMsg);
+      toast.error(errMsg);
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleDevSimulate = () => {
-    authService.dev.simulateResetPassword(newPassword);
-    setIsSuccess(true);
-    toast.info('Simulated password reset in Sandbox Mode.', 'Dev Mode');
   };
 
   return (
@@ -213,20 +208,6 @@ export const ResetPasswordPage = () => {
           >
             Update Password
           </Button>
-
-          {/* Sandbox Simulation */}
-          <div className="pt-2">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              fullWidth
-              onClick={handleDevSimulate}
-              className="text-xs text-charcoal-500 hover:text-charcoal-700"
-            >
-              🧪 Simulate Password Reset Success (Frontend Demo)
-            </Button>
-          </div>
         </form>
       )}
 

@@ -1,4 +1,5 @@
 import { Server } from 'socket.io';
+import mongoose from 'mongoose';
 import socketAuthMiddleware from './socketAuthMiddleware.js';
 import registerConversationHandlers from './conversationHandler.js';
 import registerTypingHandlers from './typingHandler.js';
@@ -7,6 +8,8 @@ import registerMessageHandlers from './messageHandler.js';
 import registerCallHandlers from './callHandler.js';
 import presenceManager from './presenceManager.js';
 import User from '../models/User.js';
+import { supabaseService } from '../services/supabaseService.js';
+import { supabaseAdmin } from '../config/supabase.js';
 
 let io = null;
 
@@ -54,12 +57,16 @@ export const initSocket = (httpServer) => {
 
     // Broadcast 'user:online' ONLY when this is the user's first active connection
     if (isFirstConnection) {
-      User.findByIdAndUpdate(socket.userId, { status: 'online' }).catch((err) => {
-        console.error(
-          `❌ Failed to update status to online for user ${socket.userId}:`,
-          err.message
-        );
-      });
+      if (mongoose.connection.readyState !== 1 && supabaseAdmin) {
+        supabaseService.updateUser(socket.userId, { status: 'online' }).catch(() => {});
+      } else {
+        User.findByIdAndUpdate(socket.userId, { status: 'online' }).catch((err) => {
+          console.error(
+            `❌ Failed to update status to online for user ${socket.userId}:`,
+            err.message
+          );
+        });
+      }
 
       io.emit('user:online', {
         userId: socket.userId,
@@ -118,15 +125,22 @@ export const initSocket = (httpServer) => {
       if (presenceInfo && presenceInfo.isLastConnection) {
         const disconnectTime = new Date();
 
-        User.findByIdAndUpdate(presenceInfo.userId, {
-          status: 'offline',
-          lastSeen: disconnectTime,
-        }).catch((err) => {
-          console.error(
-            `❌ Failed to update status to offline for user ${presenceInfo.userId}:`,
-            err.message
-          );
-        });
+        if (mongoose.connection.readyState !== 1 && supabaseAdmin) {
+          supabaseService.updateUser(presenceInfo.userId, {
+            status: 'offline',
+            lastSeen: disconnectTime.toISOString(),
+          }).catch(() => {});
+        } else {
+          User.findByIdAndUpdate(presenceInfo.userId, {
+            status: 'offline',
+            lastSeen: disconnectTime,
+          }).catch((err) => {
+            console.error(
+              `❌ Failed to update status to offline for user ${presenceInfo.userId}:`,
+              err.message
+            );
+          });
+        }
 
         io.emit('user:offline', {
           userId: presenceInfo.userId,

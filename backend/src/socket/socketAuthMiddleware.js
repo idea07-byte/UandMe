@@ -1,5 +1,8 @@
 import jwt from 'jsonwebtoken';
+import mongoose from 'mongoose';
 import User from '../models/User.js';
+import { supabaseService } from '../services/supabaseService.js';
+import { supabaseAdmin } from '../config/supabase.js';
 
 /**
  * Socket.IO Authentication Middleware.
@@ -56,8 +59,14 @@ export const socketAuthMiddleware = async (socket, next) => {
       return next(authError);
     }
 
-    // 4. Verify user exists in MongoDB
-    const user = await User.findById(decoded.id);
+    // 4. Verify user exists in database
+    let user;
+    if (mongoose.connection.readyState !== 1 && supabaseAdmin) {
+      user = await supabaseService.findUserById(decoded.id);
+    } else {
+      user = await User.findById(decoded.id);
+    }
+
     if (!user) {
       const authError = new Error(
         'Authentication error: User belonging to token no longer exists'
@@ -68,7 +77,7 @@ export const socketAuthMiddleware = async (socket, next) => {
 
     // 5. Associate authenticated user data with socket instance
     socket.user = user;
-    socket.userId = user._id.toString();
+    socket.userId = (user._id || user.id).toString();
 
     next();
   } catch (err) {

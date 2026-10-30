@@ -49,20 +49,6 @@ export const ConnectionStatusBadge = ({ size = 'md', showRetry = true, className
       );
 
     case SOCKET_STATUS.MOCK_MODE:
-      return (
-        <div
-          className={cn(
-            'inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-charcoal-100 dark:bg-charcoal-800 border border-charcoal-300 dark:border-charcoal-700 text-charcoal-600 dark:text-charcoal-300 font-semibold select-none',
-            isSmall ? 'text-[10px]' : 'text-xs',
-            className
-          )}
-          title="Backend offline: Running in Dev Mock Sandbox mode. Messages are simulated locally."
-        >
-          <ShieldCheck className={cn('text-primary-600 dark:text-primary-400', isSmall ? 'w-3 h-3' : 'w-3.5 h-3.5')} />
-          <span>{isSmall ? 'Sandbox' : 'Dev Sandbox'}</span>
-        </div>
-      );
-
     case SOCKET_STATUS.DISCONNECTED:
     default:
       return (

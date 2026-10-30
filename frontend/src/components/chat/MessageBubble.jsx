@@ -374,14 +374,6 @@ export const MessageBubble = ({
           </div>
         )}
 
-        {/* Mock Sandbox Notice Pill */}
-        {(isMock || isSandboxReply) && (
-          <div className="flex items-center gap-1 text-[10px] font-semibold text-emerald-300 bg-black/20 px-1.5 py-0.5 rounded mb-1 w-fit select-none">
-            <FlaskConical className="w-3 h-3" />
-            <span>Dev Sandbox</span>
-          </div>
-        )}
-
         {/* Attachments rendering */}
         {attachments.length > 0 && (
           <div className="space-y-1.5 mb-1.5">

@@ -1,5 +1,8 @@
 import jwt from 'jsonwebtoken';
+import mongoose from 'mongoose';
 import User from '../models/User.js';
+import { supabaseService } from '../services/supabaseService.js';
+import { supabaseAdmin } from '../config/supabase.js';
 
 /**
  * Authentication Middleware: protect
@@ -32,7 +35,13 @@ export const protect = async (req, res, next) => {
     });
 
     // 4. Verify that the user still exists in the database
-    const user = await User.findById(decoded.id);
+    let user;
+    if (mongoose.connection.readyState !== 1 && supabaseAdmin) {
+      user = await supabaseService.findUserById(decoded.id);
+    } else {
+      user = await User.findById(decoded.id);
+    }
+
     if (!user) {
       return res.status(401).json({
         status: 'error',
