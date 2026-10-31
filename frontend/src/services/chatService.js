@@ -352,6 +352,58 @@ export const chatService = {
   },
 
   /**
+   * Create a new group conversation (/api/chats/group).
+   * @param {Object} options - { name, participants, avatar }
+   * @returns {Promise<Object>} Normalized conversation object
+   */
+  async createGroupConversation({ name, participants, avatar }) {
+    const currentUser = authService.getCurrentUser();
+    const currentUserId = currentUser?.id || currentUser?._id;
+
+    try {
+      const response = await api.post('/chats/group', {
+        name,
+        participants,
+        avatar,
+      });
+
+      if (response && (response._id || response.id)) {
+        const normalized = normalizeConversation(response, currentUserId);
+        fallbackConversations.unshift(normalized);
+        return normalized;
+      }
+    } catch (err) {
+      console.warn('[chatService] POST /chats/group failed, using local fallback:', err.message);
+    }
+
+    const newGroup = {
+      id: `group_${Date.now()}`,
+      _id: `group_${Date.now()}`,
+      name,
+      avatar: avatar || 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=150',
+      status: 'online',
+      isGroup: true,
+      memberCount: (participants?.length || 0) + 1,
+      participants: [
+        { _id: currentUserId, id: currentUserId, name: currentUser?.name || 'You' },
+        ...(participants || []).map((p) => (typeof p === 'object' ? p : { _id: p, id: p, name: 'Member' })),
+      ],
+      lastMessage: null,
+      unreadCount: 0,
+      pinned: false,
+      isMuted: false,
+      isFavorite: false,
+      isArchived: false,
+      isBlocked: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    fallbackConversations.unshift(newGroup);
+    return newGroup;
+  },
+
+  /**
    * Fetch registered users as campus contacts (/api/auth/users).
    * @param {Object} [params]
    * @param {string} [params.search='']

@@ -6,8 +6,10 @@ import ChatEmptyState from './ChatEmptyState';
 import ConfirmationModal from '../common/ConfirmationModal';
 import WhatsAppContactInfoPanel from './WhatsAppContactInfoPanel';
 import WhatsAppCallModal from './WhatsAppCallModal';
+import ForwardMessageModal from './ForwardMessageModal';
 import { Ban, Eraser, Trash2 } from 'lucide-react';
 import useToast from '../../hooks/useToast';
+import useAuth from '../../hooks/useAuth';
 
 export const ChatArea = ({
   conversation,
@@ -39,7 +41,10 @@ export const ChatArea = ({
   const [isClearModalOpen, setIsClearModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);
+  const [forwardingMessage, setForwardingMessage] = useState(null);
   const toast = useToast();
+  const { user } = useAuth();
+  const currentUserId = user?.id || user?._id || 'usr_me_1';
 
   if (!conversation) {
     return <ChatEmptyState onNewChat={onNewChat} />;
@@ -80,6 +85,15 @@ export const ChatArea = ({
 
   const handleDeleteMessage = (messageId) => {
     toast.info('Message removed');
+  };
+
+  const handleForwardMessage = (message) => {
+    setForwardingMessage(message);
+  };
+
+  const handleToggleStar = (message) => {
+    message.isStarred = !message.isStarred;
+    toast.success(message.isStarred ? 'Message starred' : 'Message unstarred');
   };
 
   const handleSend = (text, attachments) => {
@@ -141,6 +155,7 @@ export const ChatArea = ({
         <MessageList
           messages={filteredMessages}
           activeConversation={conversation}
+          currentUserId={currentUserId}
           isTyping={isTyping}
           typingUserName={typingUserName}
           searchHighlight={searchQuery}
@@ -148,6 +163,8 @@ export const ChatArea = ({
           onReply={handleReply}
           onReact={handleReact}
           onDeleteMessage={handleDeleteMessage}
+          onForward={handleForwardMessage}
+          onStar={handleToggleStar}
         />
 
         {/* WhatsApp Message Input Bar */}
@@ -240,6 +257,14 @@ export const ChatArea = ({
         confirmText={conversation.isBlocked ? 'Unblock' : 'Block'}
         variant={conversation.isBlocked ? 'primary' : 'danger'}
         icon={Ban}
+      />
+
+      {/* Forward Message Modal */}
+      <ForwardMessageModal
+        isOpen={Boolean(forwardingMessage)}
+        onClose={() => setForwardingMessage(null)}
+        message={forwardingMessage}
+        onForwarded={() => setForwardingMessage(null)}
       />
     </div>
   );

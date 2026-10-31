@@ -24,7 +24,20 @@ export const initSocket = (httpServer) => {
 
   io = new Server(httpServer, {
     cors: {
-      origin: allowedOrigin,
+      origin: (origin, callback) => {
+        if (
+          !origin ||
+          allowedOrigin === '*' ||
+          origin === allowedOrigin ||
+          origin.includes('localhost') ||
+          origin.includes('127.0.0.1') ||
+          origin.endsWith('.onrender.com') ||
+          origin.endsWith('.vercel.app')
+        ) {
+          return callback(null, true);
+        }
+        return callback(null, true);
+      },
       credentials: true,
       methods: ['GET', 'POST'],
     },

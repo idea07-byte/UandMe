@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Plus, Search, MessageSquareDashed, Users, Archive, Star } from 'lucide-react';
 import ConversationItem from './ConversationItem';
 import NewChatModal from './NewChatModal';
+import NewGroupModal from './NewGroupModal';
 import ConnectionStatusBadge from './ConnectionStatusBadge';
 import SearchInput from '../forms/SearchInput';
 import Button from '../common/Button';
@@ -44,6 +45,7 @@ export const ConversationList = ({
   className,
 }) => {
   const [isNewChatModalOpen, setIsNewChatModalOpen] = useState(false);
+  const [isNewGroupModalOpen, setIsNewGroupModalOpen] = useState(false);
 
   const getHeaderTitle = () => {
     switch (activeView) {
@@ -74,6 +76,17 @@ export const ConversationList = ({
           </div>
 
           <div className="flex items-center gap-1">
+            {/* New Group Button */}
+            <button
+              type="button"
+              onClick={() => setIsNewGroupModalOpen(true)}
+              className="p-2 rounded-full text-[#8696A0] hover:text-[#00A884] hover:bg-[#202C33] transition-colors"
+              title="New group"
+              aria-label="New group"
+            >
+              <Users className="w-5 h-5" />
+            </button>
+
             {/* WhatsApp New Chat Button */}
             <button
               type="button"
@@ -257,6 +270,16 @@ export const ConversationList = ({
         onStartChat={(user) => {
           onAddConversation?.(user);
           setIsNewChatModalOpen(false);
+        }}
+      />
+
+      {/* New Group Modal */}
+      <NewGroupModal
+        isOpen={isNewGroupModalOpen}
+        onClose={() => setIsNewGroupModalOpen(false)}
+        onGroupCreated={(group) => {
+          onSelectConversation?.(group);
+          onAddConversation?.(group);
         }}
       />
     </div>

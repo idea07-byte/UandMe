@@ -11,14 +11,23 @@ import useAuth from '../../hooks/useAuth';
 import useToast from '../../hooks/useToast';
 import { MOCK_STATUSES } from '../../services/mockWhatsAppExtras';
 import { cn } from '../../utils/cn';
+import WhatsAppAddStatusModal from './WhatsAppAddStatusModal';
 
 export const StatusList = ({ onSelectStatus, selectedStatusId }) => {
   const { user } = useAuth();
   const toast = useToast();
-  const [statuses] = useState(MOCK_STATUSES);
+  const [statuses, setStatuses] = useState(MOCK_STATUSES);
+  const [myStatus, setMyStatus] = useState(null);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   const handleAddStatus = () => {
-    toast.info('Status composer: share text, photo, or video that disappears after 24 hours.');
+    setIsAddModalOpen(true);
+  };
+
+  const handleStatusCreated = (newStatus) => {
+    setMyStatus(newStatus);
+    toast.success('Your status update has been published!', 'Status Updated');
+    onSelectStatus?.(newStatus);
   };
 
   return (
@@ -41,19 +50,47 @@ export const StatusList = ({ onSelectStatus, selectedStatusId }) => {
       <div className="flex-1 overflow-y-auto">
         {/* My Status Row */}
         <div
-          onClick={handleAddStatus}
-          className="flex items-center gap-3.5 px-4 py-3.5 hover:bg-[#202C33] cursor-pointer transition-colors border-b border-[#222D34]"
+          onClick={() => {
+            if (myStatus) {
+              onSelectStatus?.(myStatus);
+            } else {
+              handleAddStatus();
+            }
+          }}
+          className={cn(
+            'flex items-center gap-3.5 px-4 py-3.5 hover:bg-[#202C33] cursor-pointer transition-colors border-b border-[#222D34]',
+            selectedStatusId === myStatus?.id && 'bg-[#2A3942]'
+          )}
         >
           <div className="relative">
-            <Avatar src={user?.avatar} name={user?.name || 'Me'} size="md" />
-            <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-[#00A884] border-2 border-[#111B21] flex items-center justify-center text-white">
-              <Plus className="w-3.5 h-3.5 stroke-[3]" />
+            <div className={cn(myStatus && 'rounded-full ring-2 ring-[#00A884] ring-offset-2 ring-offset-[#111B21] p-[2px]')}>
+              <Avatar src={user?.avatar} name={user?.name || 'Me'} size="md" />
             </div>
+            {!myStatus && (
+              <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-[#00A884] border-2 border-[#111B21] flex items-center justify-center text-white">
+                <Plus className="w-3.5 h-3.5 stroke-[3]" />
+              </div>
+            )}
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-[#E9EDEF]">My status</p>
-            <p className="text-xs text-[#8696A0]">Click to add status update</p>
+            <p className="text-xs text-[#8696A0]">
+              {myStatus ? `${myStatus.time} • Tap to view` : 'Click to add status update'}
+            </p>
           </div>
+          {myStatus && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleAddStatus();
+              }}
+              className="p-1.5 rounded-full text-[#8696A0] hover:text-[#00A884] hover:bg-[#202C33] transition-colors"
+              title="Add another status"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+          )}
         </div>
 
         {/* Recent Updates Header */}
@@ -97,6 +134,14 @@ export const StatusList = ({ onSelectStatus, selectedStatusId }) => {
           })}
         </div>
       </div>
+
+      {/* Add Status Modal */}
+      <WhatsAppAddStatusModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onAddStatus={handleStatusCreated}
+        user={user}
+      />
     </div>
   );
 };

@@ -62,13 +62,20 @@ const allowedOrigins = [
   'http://localhost:5173',
   'http://127.0.0.1:5173',
   'http://localhost:3000',
+  'https://uandme-frontend.onrender.com',
 ];
 
 app.use(
   cors({
     origin: (origin, callback) => {
       // Allow requests with no origin (e.g. mobile apps, curl, server-to-server tests), or if wildcard is configured
-      if (!origin || allowedOriginEnv === '*' || allowedOrigins.includes(origin)) {
+      if (
+        !origin ||
+        allowedOriginEnv === '*' ||
+        allowedOrigins.includes(origin) ||
+        origin.endsWith('.onrender.com') ||
+        origin.endsWith('.vercel.app')
+      ) {
         return callback(null, true);
       }
       return callback(new Error(`CORS blocked request from unauthorized origin: ${origin}`));

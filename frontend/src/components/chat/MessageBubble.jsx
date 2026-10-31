@@ -15,6 +15,7 @@ import {
   Star,
   Trash2,
   Copy,
+  Forward,
   Play,
   Pause,
 } from 'lucide-react';
@@ -197,6 +198,8 @@ export const MessageBubble = ({
   onReply,
   onReact,
   onDelete,
+  onForward,
+  onStar,
 }) => {
   const {
     id,
@@ -316,6 +319,28 @@ export const MessageBubble = ({
                 type="button"
                 onClick={() => {
                   setShowMenu(false);
+                  onForward?.(message);
+                }}
+                className="w-full px-3 py-1.5 text-left hover:bg-[#111B21] flex items-center gap-2"
+              >
+                <Forward className="w-3.5 h-3.5 text-[#8696A0]" />
+                <span>Forward</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowMenu(false);
+                  onStar?.(message);
+                }}
+                className="w-full px-3 py-1.5 text-left hover:bg-[#111B21] flex items-center gap-2"
+              >
+                <Star className={cn("w-3.5 h-3.5", message.isStarred ? "text-amber-400 fill-amber-400" : "text-[#8696A0]")} />
+                <span>{message.isStarred ? 'Unstar' : 'Star'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowMenu(false);
                   navigator.clipboard?.writeText(cleanText || '');
                 }}
                 className="w-full px-3 py-1.5 text-left hover:bg-[#111B21] flex items-center gap-2"
@@ -421,6 +446,9 @@ export const MessageBubble = ({
 
         {/* Metadata: Time and Status Checks pinned to bottom-right */}
         <div className="absolute right-2 bottom-1 flex items-center gap-1 text-[11px] select-none text-[#8696A0]">
+          {message.isStarred && (
+            <Star className="w-3 h-3 text-amber-400 fill-amber-400 shrink-0" />
+          )}
           <span>{formatMessageTime(timestamp)}</span>
 
           {isOutgoing && (

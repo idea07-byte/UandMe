@@ -10,6 +10,9 @@ import StatusList from '../components/chat/StatusList';
 import StatusEmptyState from '../components/chat/StatusEmptyState';
 import CommunitiesList from '../components/chat/CommunitiesList';
 import CommunitiesEmptyState from '../components/chat/CommunitiesEmptyState';
+import WhatsAppStatusViewer from '../components/chat/WhatsAppStatusViewer';
+import WhatsAppCallDetailsView from '../components/chat/WhatsAppCallDetailsView';
+import WhatsAppCommunityDetailsView from '../components/chat/WhatsAppCommunityDetailsView';
 import WhatsAppDialpadModal from '../components/chat/WhatsAppDialpadModal';
 import chatService from '../services/chatService';
 import useToast from '../hooks/useToast';
@@ -33,6 +36,9 @@ export const ChatPage = () => {
 
   // Navigation rail section ('chats' | 'calls' | 'status' | 'communities' | 'archived' | 'starred' | 'settings')
   const [activeSection, setActiveSection] = useState('chats');
+  const [selectedStatus, setSelectedStatus] = useState(null);
+  const [selectedCall, setSelectedCall] = useState(null);
+  const [selectedCommunity, setSelectedCommunity] = useState(null);
 
   // WhatsApp Dialpad Modal State
   const [isDialpadOpen, setIsDialpadOpen] = useState(false);
@@ -538,6 +544,9 @@ export const ChatPage = () => {
             return;
           }
           setActiveSection(section);
+          setSelectedStatus(null);
+          setSelectedCall(null);
+          setSelectedCommunity(null);
         }}
         unreadChatsCount={unreadTotal}
         missedCallsCount={1}
@@ -578,7 +587,8 @@ export const ChatPage = () => {
 
         {activeSection === 'calls' && (
           <CallsList
-            onSelectCall={(call) => toast.info(`Call history for ${call.name}`)}
+            onSelectCall={(call) => setSelectedCall(call)}
+            selectedCallId={selectedCall?.id}
             onOpenDialpad={() => setIsDialpadOpen(true)}
             onStartCall={(contact, type) => {
               if (type === 'video') {
@@ -592,13 +602,19 @@ export const ChatPage = () => {
 
         {activeSection === 'status' && (
           <StatusList
-            onSelectStatus={(st) => toast.info(`Viewing status: ${st.name}`)}
+            onSelectStatus={(st) => setSelectedStatus(st)}
+            selectedStatusId={selectedStatus?.id}
           />
         )}
 
         {activeSection === 'communities' && (
           <CommunitiesList
-            onSelectGroup={(comm) => toast.info(`Opening ${comm.name}`)}
+            onSelectCommunity={(comm) => setSelectedCommunity(comm)}
+            selectedCommunityId={selectedCommunity?.id}
+            onSelectGroup={(sub) => {
+              handleAddConversation(sub);
+              setActiveSection('chats');
+            }}
           />
         )}
 
@@ -690,22 +706,63 @@ export const ChatPage = () => {
             <ChatEmptyState onNewChat={() => navigate('/contacts')} />
           )
         ) : activeSection === 'calls' ? (
-          <CallsEmptyState
-            onOpenDialpad={() => setIsDialpadOpen(true)}
-            onStartCall={() => {
-              if (activeConversation) {
-                handleStartVoiceCall(activeConversation);
-              } else if (conversations.length > 0) {
-                handleStartVoiceCall(conversations[0]);
-              } else {
-                setIsDialpadOpen(true);
-              }
-            }}
-          />
+          selectedCall ? (
+            <WhatsAppCallDetailsView
+              call={selectedCall}
+              onStartVoiceCall={(target) => handleStartVoiceCall(target || selectedCall)}
+              onStartVideoCall={(target) => handleStartVideoCall(target || selectedCall)}
+              onOpenChat={(target) => {
+                handleAddConversation(target || selectedCall);
+                setActiveSection('chats');
+              }}
+            />
+          ) : (
+            <CallsEmptyState
+              onOpenDialpad={() => setIsDialpadOpen(true)}
+              onStartCall={() => {
+                if (activeConversation) {
+                  handleStartVoiceCall(activeConversation);
+                } else if (conversations.length > 0) {
+                  handleStartVoiceCall(conversations[0]);
+                } else {
+                  setIsDialpadOpen(true);
+                }
+              }}
+            />
+          )
         ) : activeSection === 'status' ? (
-          <StatusEmptyState />
+          selectedStatus ? (
+            <WhatsAppStatusViewer
+              status={selectedStatus}
+              onClose={() => setSelectedStatus(null)}
+              onReply={(statusItem, text) => {
+                handleAddConversation({
+                  id: selectedStatus.userId || selectedStatus.id,
+                  name: selectedStatus.name,
+                  avatar: selectedStatus.avatar,
+                });
+                setActiveSection('chats');
+                handleSendMessage(`Replying to status: "${text}"`);
+              }}
+            />
+          ) : (
+            <StatusEmptyState />
+          )
         ) : activeSection === 'communities' ? (
-          <CommunitiesEmptyState />
+          selectedCommunity ? (
+            <WhatsAppCommunityDetailsView
+              community={selectedCommunity}
+              onOpenSubgroupChat={(subgroup) => {
+                handleAddConversation(subgroup);
+                setActiveSection('chats');
+              }}
+              onAddSubgroup={(comm) => {
+                toast.info(`Add group to ${comm.name}`);
+              }}
+            />
+          ) : (
+            <CommunitiesEmptyState />
+          )
         ) : (
           <ChatEmptyState onNewChat={() => navigate('/contacts')} />
         )}

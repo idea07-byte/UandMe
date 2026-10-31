@@ -15,6 +15,8 @@ export const MessageList = ({
   onReply,
   onReact,
   onDeleteMessage,
+  onForward,
+  onStar,
 }) => {
   const scrollContainerRef = useRef(null);
   const messagesEndRef = useRef(null);
@@ -109,6 +111,8 @@ export const MessageList = ({
                 onReply={onReply}
                 onReact={onReact}
                 onDelete={onDeleteMessage}
+                onForward={onForward}
+                onStar={onStar}
               />
             </React.Fragment>
           );

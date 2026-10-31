@@ -26,9 +26,13 @@ export const cleanDatabase = async () => {
 
 beforeAll(async () => {
   if (mongoose.connection.readyState === 0) {
-    await mongoose.connect(TEST_DB_URI, {
-      serverSelectionTimeoutMS: 5000,
-    });
+    try {
+      await mongoose.connect(TEST_DB_URI, {
+        serverSelectionTimeoutMS: 2000,
+      });
+    } catch (err) {
+      console.warn('⚠️ Local MongoDB not running; proceeding with Supabase data layer.');
+    }
   }
   await cleanDatabase();
 });
