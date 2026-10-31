@@ -207,3 +207,4 @@ export const WhatsAppAddStatusModal = ({ isOpen, onClose, onAddStatus, user }) =
 };
 
 export default WhatsAppAddStatusModal;
+

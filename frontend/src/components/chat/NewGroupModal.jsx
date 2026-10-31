@@ -293,3 +293,4 @@ export const NewGroupModal = ({ isOpen, onClose, onGroupCreated }) => {
 };
 
 export default NewGroupModal;
+

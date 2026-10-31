@@ -153,3 +153,4 @@ export const WhatsAppCallDetailsView = ({
 };
 
 export default WhatsAppCallDetailsView;
+
