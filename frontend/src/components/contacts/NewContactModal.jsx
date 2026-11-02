@@ -58,7 +58,7 @@ export const NewContactModal = ({
     }
 
     const timer = setTimeout(async () => {
-      const normalized = normalizePhone(phone, countryCode.replace('+', ''));
+      const normalized = normalizePhone(phone, countryCode);
       if (!normalized.isValid) {
         setPhoneError(normalized.error);
         setPhoneCheckResult(null);
@@ -97,7 +97,7 @@ export const NewContactModal = ({
       return;
     }
 
-    const normalized = normalizePhone(phone, countryCode.replace('+', ''));
+    const normalized = normalizePhone(phone, countryCode);
     if (!normalized.isValid) {
       setPhoneError(normalized.error);
       return;

@@ -101,7 +101,7 @@ export const LoginPage = () => {
     if (e) e.preventDefault();
     setServerError(null);
 
-    const normalized = normalizePhone(phone, countryCode.replace('+', ''));
+    const normalized = normalizePhone(phone, countryCode);
     if (!normalized.isValid) {
       setErrors((prev) => ({ ...prev, phone: normalized.error || 'Please enter a valid phone number' }));
       return;
@@ -143,7 +143,7 @@ export const LoginPage = () => {
       return;
     }
 
-    const normalized = normalizePhone(phone, countryCode.replace('+', ''));
+    const normalized = normalizePhone(phone, countryCode);
     setIsLoading(true);
     try {
       const res = await verifyPhoneOtp({

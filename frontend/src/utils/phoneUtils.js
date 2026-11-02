@@ -24,52 +24,143 @@ export const COUNTRY_CODES = [
 ];
 
 /**
+ * Resolves any country identifier (ISO code 'IN', dial code '+91' or '91') to its 2-letter ISO code.
+ */
+export function getCountryIso(codeOrDial) {
+  if (!codeOrDial) return 'IN';
+  const clean = codeOrDial.toString().trim().toUpperCase();
+
+  // 1. Direct ISO match (e.g. 'IN', 'US')
+  const byCode = COUNTRY_CODES.find((c) => c.code === clean);
+  if (byCode) return byCode.code;
+
+  // 2. Dial code match (e.g. '+91', '91')
+  const dial = clean.startsWith('+') ? clean : `+${clean}`;
+  const byDial = COUNTRY_CODES.find((c) => c.dialCode === dial);
+  if (byDial) return byDial.code;
+
+  return 'IN';
+}
+
+/**
+ * Resolves any country identifier to standard dial code (e.g. '+91').
+ */
+export function getDialCode(codeOrDial) {
+  if (!codeOrDial) return '+91';
+  const clean = codeOrDial.toString().trim();
+
+  // 1. Dial code match
+  const dial = clean.startsWith('+') ? clean : `+${clean}`;
+  const byDial = COUNTRY_CODES.find((c) => c.dialCode === dial);
+  if (byDial) return byDial.dialCode;
+
+  // 2. ISO match
+  const byCode = COUNTRY_CODES.find((c) => c.code.toUpperCase() === clean.toUpperCase());
+  if (byCode) return byCode.dialCode;
+
+  return dial;
+}
+
+/**
  * Normalizes and validates any telephone input into standard E.164 format (+919876543210).
- * Handles partial inputs, national numbers, and international prefixes.
+ * Robust against ISO codes, dial codes ('+91', '91'), spaces, hyphens, and 10-digit national numbers.
  *
  * @param {string} rawNumber
- * @param {string} defaultCountry
+ * @param {string} defaultCountry - Can be ISO 'IN' or dial code '+91' or '91'
  * @returns {{ isValid: boolean, e164: string, formatted: string, country: string, error?: string }}
  */
 export function normalizePhone(rawNumber, defaultCountry = 'IN') {
   if (!rawNumber || typeof rawNumber !== 'string') {
-    return { isValid: false, e164: '', formatted: '', country: defaultCountry, error: 'Phone number is required' };
+    return { isValid: false, e164: '', formatted: '', country: 'IN', error: 'Phone number is required' };
   }
 
   const cleaned = rawNumber.trim();
-  try {
-    const phoneNumber = parsePhoneNumberFromString(cleaned, defaultCountry);
-    if (phoneNumber && phoneNumber.isValid()) {
-      return {
-        isValid: true,
-        e164: phoneNumber.number, // e.g. "+919876543210"
-        formatted: phoneNumber.formatInternational(), // e.g. "+91 98765 43210"
-        national: phoneNumber.formatNational(),
-        country: phoneNumber.country || defaultCountry,
-      };
-    }
-  } catch (err) {
-    // Fall through to manual fallback validation
+  const digitsOnly = cleaned.replace(/\D/g, '');
+
+  if (!digitsOnly || digitsOnly.length < 5) {
+    return { isValid: false, e164: '', formatted: cleaned, country: 'IN', error: 'Please enter a valid phone number' };
   }
 
-  // Graceful fallback for numbers with standard lengths
-  const digitsOnly = cleaned.replace(/\D/g, '');
-  if (cleaned.startsWith('+') && digitsOnly.length >= 8 && digitsOnly.length <= 15) {
+  const isoCountry = getCountryIso(defaultCountry);
+  const dialCode = getDialCode(defaultCountry);
+
+  // 1. If user typed full number starting with +
+  if (cleaned.startsWith('+')) {
+    try {
+      const phoneNumber = parsePhoneNumberFromString(cleaned);
+      if (phoneNumber && phoneNumber.isValid()) {
+        return {
+          isValid: true,
+          e164: phoneNumber.number,
+          formatted: phoneNumber.formatInternational(),
+          national: phoneNumber.formatNational(),
+          country: phoneNumber.country || isoCountry,
+        };
+      }
+    } catch {}
+
+    if (digitsOnly.length >= 8 && digitsOnly.length <= 15) {
+      return {
+        isValid: true,
+        e164: `+${digitsOnly}`,
+        formatted: `+${digitsOnly}`,
+        country: isoCountry,
+      };
+    }
+  }
+
+  // 2. Try prepending dial code (+91...)
+  const withDialCode = `${dialCode}${digitsOnly}`;
+  try {
+    const phoneNumberWithDial = parsePhoneNumberFromString(withDialCode);
+    if (phoneNumberWithDial && phoneNumberWithDial.isValid()) {
+      return {
+        isValid: true,
+        e164: phoneNumberWithDial.number,
+        formatted: phoneNumberWithDial.formatInternational(),
+        national: phoneNumberWithDial.formatNational(),
+        country: phoneNumberWithDial.country || isoCountry,
+      };
+    }
+  } catch {}
+
+  // 3. Try parsing with ISO country context
+  try {
+    const phoneNumberIso = parsePhoneNumberFromString(cleaned, isoCountry);
+    if (phoneNumberIso && phoneNumberIso.isValid()) {
+      return {
+        isValid: true,
+        e164: phoneNumberIso.number,
+        formatted: phoneNumberIso.formatInternational(),
+        national: phoneNumberIso.formatNational(),
+        country: phoneNumberIso.country || isoCountry,
+      };
+    }
+  } catch {}
+
+  // 4. Graceful fallback for standard 10-digit mobile numbers (e.g. India 6379756227, US, etc.)
+  if (digitsOnly.length === 10) {
+    const formatted = isoCountry === 'IN'
+      ? `${dialCode} ${digitsOnly.slice(0, 5)} ${digitsOnly.slice(5)}`
+      : `${dialCode} (${digitsOnly.slice(0, 3)}) ${digitsOnly.slice(3, 6)}-${digitsOnly.slice(6)}`;
+
     return {
       isValid: true,
-      e164: `+${digitsOnly}`,
-      formatted: `+${digitsOnly}`,
-      country: defaultCountry,
+      e164: `${dialCode}${digitsOnly}`,
+      formatted,
+      national: digitsOnly,
+      country: isoCountry,
     };
   }
 
-  // If provided as 10 digits without + and default country is IN
-  if (digitsOnly.length === 10 && defaultCountry === 'IN') {
+  // 5. Fallback for any international number 7-15 digits
+  if (digitsOnly.length >= 8 && digitsOnly.length <= 15) {
     return {
       isValid: true,
-      e164: `+91${digitsOnly}`,
-      formatted: `+91 ${digitsOnly.slice(0, 5)} ${digitsOnly.slice(5)}`,
-      country: 'IN',
+      e164: `${dialCode}${digitsOnly}`,
+      formatted: `${dialCode} ${digitsOnly}`,
+      national: digitsOnly,
+      country: isoCountry,
     };
   }
 
@@ -77,8 +168,7 @@ export function normalizePhone(rawNumber, defaultCountry = 'IN') {
     isValid: false,
     e164: '',
     formatted: cleaned,
-    country: defaultCountry,
-    error: 'Please enter a valid phone number with country code',
+    country: isoCountry,
+    error: 'Please enter a valid phone number',
   };
 }
-

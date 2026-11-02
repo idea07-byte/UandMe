@@ -39,7 +39,7 @@ export const EditContactModal = ({
 
     let normalizedPhone = undefined;
     if (phone) {
-      const parsed = normalizePhone(phone, countryCode.replace('+', ''));
+      const parsed = normalizePhone(phone, countryCode);
       if (!parsed.isValid) {
         setPhoneError(parsed.error);
         return;

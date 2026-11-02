@@ -65,7 +65,7 @@ export const contactService = {
    * Check if a phone number is registered in the application.
    */
   async checkPhone(phone, countryCode = '+91') {
-    const normalized = normalizePhone(phone, countryCode.replace('+', ''));
+    const normalized = normalizePhone(phone, countryCode);
     if (!normalized.isValid) {
       return { isValid: false, isRegistered: false, error: normalized.error };
     }
@@ -94,7 +94,7 @@ export const contactService = {
   async addContact({ name, phone, countryCode = '+91' }) {
     const currentUser = authService.getCurrentUser();
     const userId = currentUser?.id || currentUser?._id || 'guest';
-    const normalized = normalizePhone(phone, countryCode.replace('+', ''));
+    const normalized = normalizePhone(phone, countryCode);
 
     if (!normalized.isValid) {
       throw new Error(normalized.error || 'Invalid phone number format');
@@ -112,7 +112,7 @@ export const contactService = {
         countryCode: countryCode.replace('+', ''),
       });
 
-      const newContact = response.data?.contact;
+      const newContact = response.data?.data?.contact || response.data?.contact;
       if (newContact) {
         const cached = getLocalCache(userId);
         const updated = [newContact, ...cached.filter((c) => c.id !== newContact.id)];
