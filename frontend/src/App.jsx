@@ -10,6 +10,7 @@ import MainLayout from './layouts/MainLayout';
 import AuthLayout from './layouts/AuthLayout';
 import SettingsLayout from './layouts/SettingsLayout';
 import LoadingSpinner from './components/common/LoadingSpinner';
+import ErrorBoundary from './components/common/ErrorBoundary';
 
 // Pages
 import ChatPage from './pages/ChatPage';
@@ -58,14 +59,15 @@ function ProtectedRoute({ children }) {
 
 export function App() {
   return (
-    <ThemeProvider>
-      <ToastProvider>
-        <AuthProvider>
-          <SocketProvider>
-            <CallProvider>
-              <BrowserRouter>
-                <WhatsAppCallModal />
-                <Routes>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <ToastProvider>
+          <AuthProvider>
+            <SocketProvider>
+              <CallProvider>
+                <BrowserRouter>
+                  <WhatsAppCallModal />
+                  <Routes>
                   {/* Authenticated Application Shell */}
                 <Route element={<MainLayout />}>
                   <Route path="/" element={<Navigate to="/chat" replace />} />
@@ -140,6 +142,7 @@ export function App() {
       </AuthProvider>
     </ToastProvider>
   </ThemeProvider>
+</ErrorBoundary>
 );
 };
 
