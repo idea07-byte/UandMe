@@ -1,19 +1,24 @@
 /**
- * WebRTC Configuration & ICE discovery settings.
- * Includes Google public STUN servers and optional TURN server integration
- * configured via environment variables for NAT traversal across restrictive firewalls.
+ * WebRTC Configuration & ICE Discovery Settings.
+ * Includes Google STUN, Mozilla STUN, Cloudflare STUN, and environment-configured TURN
+ * for reliable NAT traversal and firewall bypass.
  */
 
 export const getIceServers = () => {
   const servers = [
+    // Primary Google STUN cluster
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
     { urls: 'stun:stun2.l.google.com:19302' },
     { urls: 'stun:stun3.l.google.com:19302' },
     { urls: 'stun:stun4.l.google.com:19302' },
+
+    // Cloudflare & Mozilla STUN fallbacks
+    { urls: 'stun:stun.cloudflare.com:3478' },
+    { urls: 'stun:stun.services.mozilla.com' },
   ];
 
-  // Optional TURN server credentials from environment variables
+  // Optional TURN relay server credentials (configured via .env for production networks)
   const turnUrl = import.meta.env.VITE_TURN_URL;
   const turnUsername = import.meta.env.VITE_TURN_USERNAME;
   const turnCredential = import.meta.env.VITE_TURN_CREDENTIAL;
@@ -33,6 +38,7 @@ export const defaultRTCConfiguration = {
   iceCandidatePoolSize: 10,
   bundlePolicy: 'max-bundle',
   rtcpMuxPolicy: 'require',
+  iceTransportPolicy: 'all',
 };
 
 export const getMediaConstraints = (callType = 'voice') => {

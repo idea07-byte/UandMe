@@ -127,6 +127,19 @@ export const registerCallHandlers = (io, socket) => {
             callId,
             reason: 'Call timed out',
           });
+
+          // Dispatch explicit missed call event to recipient
+          io.to(`user:${recipientId}`).to(recipientId).emit('call:missed', {
+            callId,
+            caller: {
+              id: currentUserId,
+              name: socket.user?.name || socket.user?.username || 'Contact',
+              avatar: socket.user?.avatar || null,
+              phone: socket.user?.phone || null,
+            },
+            callType: expiredCall.callType,
+            timestamp: new Date().toISOString(),
+          });
         }
       }, 35000);
 
@@ -259,6 +272,21 @@ export const registerCallHandlers = (io, socket) => {
           callId,
           reason: 'Caller cancelled the call',
         });
+
+        // If caller cancels while ringing, dispatch missed call to recipient
+        if (call.status === 'ringing') {
+          io.to(`user:${call.recipientId}`).to(call.recipientId).emit('call:missed', {
+            callId,
+            caller: {
+              id: currentUserId,
+              name: socket.user?.name || socket.user?.username || 'Contact',
+              avatar: socket.user?.avatar || null,
+              phone: socket.user?.phone || null,
+            },
+            callType: call.callType,
+            timestamp: new Date().toISOString(),
+          });
+        }
         console.log(`🚫 [Call] Cancelled: callId=${callId} by caller ${currentUserId}`);
       }
 
@@ -351,7 +379,27 @@ export const registerCallHandlers = (io, socket) => {
     }
   });
 
-  // 9. Handle Disconnect - Clean up any active call if user disconnects unexpectedly
+  // 9. Switch / Upgrade from Voice Call to Video Call
+  socket.on('call:switch_video', (payload, callback) => {
+    try {
+      const { callId, enabled = true } = payload || {};
+      const call = activeCalls.get(callId);
+      if (call) {
+        call.callType = enabled ? 'video' : 'voice';
+        const peerId = currentUserId === call.callerId ? call.recipientId : call.callerId;
+        io.to(`user:${peerId}`).to(peerId).emit('call:video_switched', {
+          callId,
+          enabled,
+          userId: currentUserId,
+        });
+      }
+      if (typeof callback === 'function') callback({ status: 'success' });
+    } catch (err) {
+      console.error('❌ [Call] Error switching video mode:', err);
+    }
+  });
+
+  // 10. Handle Disconnect - Clean up any active call if user disconnects unexpectedly
   socket.on('disconnect', () => {
     const activeCallId = userActiveCall.get(currentUserId);
     if (activeCallId) {

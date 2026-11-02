@@ -15,6 +15,7 @@ import WhatsAppCallDetailsView from '../components/chat/WhatsAppCallDetailsView'
 import WhatsAppCommunityDetailsView from '../components/chat/WhatsAppCommunityDetailsView';
 import WhatsAppDialpadModal from '../components/chat/WhatsAppDialpadModal';
 import chatService from '../services/chatService';
+import callHistoryService from '../services/callHistoryService';
 import useToast from '../hooks/useToast';
 import useAuth from '../hooks/useAuth';
 import useSocket from '../hooks/useSocket';
@@ -797,6 +798,11 @@ export const ChatPage = () => {
               onOpenChat={(target) => {
                 handleAddConversation(target || selectedCall);
                 setActiveSection('chats');
+              }}
+              onDeleteCall={(logId) => {
+                callHistoryService.deleteCall(user?.id || user?._id, logId);
+                setSelectedCall(null);
+                toast.success('Call log deleted');
               }}
             />
           ) : (

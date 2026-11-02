@@ -10,6 +10,8 @@ import socketService from '../services/socket';
 import { useAuth } from './AuthContext';
 import { defaultRTCConfiguration, getMediaConstraints } from '../utils/webrtcConfig';
 import useToast from '../hooks/useToast';
+import callHistoryService from '../services/callHistoryService';
+import notificationService from '../services/notificationService';
 
 const CallContext = createContext(null);
 
@@ -336,6 +338,8 @@ export const CallProvider = ({ children }) => {
             setDuration((prev) => prev + 1);
           }, 1000);
         }
+      } else if (pc.connectionState === 'disconnected' || pc.connectionState === 'connecting') {
+        setSubstate('reconnecting');
       } else if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
         console.warn('⚠️ [WebRTC] Connection failed or closed.');
       }
@@ -345,6 +349,9 @@ export const CallProvider = ({ children }) => {
       console.log('🧊 [WebRTC] ICE Connection state:', pc.iceConnectionState);
       if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
         stopAllTones();
+        setSubstate('connected');
+      } else if (pc.iceConnectionState === 'disconnected') {
+        setSubstate('reconnecting');
       }
     };
 
@@ -459,17 +466,35 @@ export const CallProvider = ({ children }) => {
     (reason = 'declined') => {
       if (!callId) return;
       socketService.emit('call:reject', { callId, reason });
+      if (user && peer) {
+        callHistoryService.addCall(user.id || user._id, {
+          peer,
+          direction: 'incoming',
+          status: 'declined',
+          duration: 0,
+          type: callType,
+        });
+      }
       resetCallState();
     },
-    [callId, resetCallState]
+    [callId, resetCallState, user, peer, callType]
   );
 
   // User A cancels outgoing call
   const cancelCall = useCallback(() => {
     if (!callId) return;
     socketService.emit('call:cancel', { callId });
+    if (user && peer) {
+      callHistoryService.addCall(user.id || user._id, {
+        peer,
+        direction: 'outgoing',
+        status: 'cancelled',
+        duration: 0,
+        type: callType,
+      });
+    }
     resetCallState();
-  }, [callId, resetCallState]);
+  }, [callId, resetCallState, user, peer, callType]);
 
   // Either party ends connected call
   const endCall = useCallback(() => {
@@ -480,9 +505,67 @@ export const CallProvider = ({ children }) => {
 
     playHangupTone();
     socketService.emit('call:end', { callId, duration });
+
+    if (user && peer) {
+      callHistoryService.addCall(user.id || user._id, {
+        peer,
+        direction: callState === 'outgoing' ? 'outgoing' : 'incoming',
+        status: 'completed',
+        duration,
+        type: callType,
+      });
+    }
+
     toast.info(`Call ended (${duration}s)`);
     resetCallState();
-  }, [callId, duration, playHangupTone, resetCallState, toast]);
+  }, [callId, duration, playHangupTone, resetCallState, toast, user, peer, callState, callType]);
+
+  // Seamlessly switch / upgrade from Voice Call to Video Call
+  const switchToVideo = useCallback(async () => {
+    if (!callId || !pcRef.current) return;
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
+      });
+      const videoTrack = stream.getVideoTracks()[0];
+      if (!videoTrack) return;
+
+      if (localStreamRef.current) {
+        localStreamRef.current.addTrack(videoTrack);
+      } else {
+        localStreamRef.current = stream;
+        setLocalStream(stream);
+      }
+
+      const senders = pcRef.current.getSenders();
+      const existingVideoSender = senders.find((s) => s.track && s.track.kind === 'video');
+      if (existingVideoSender) {
+        await existingVideoSender.replaceTrack(videoTrack);
+      } else {
+        pcRef.current.addTrack(videoTrack, localStreamRef.current);
+      }
+
+      setCallType('video');
+      setIsVideoEnabled(true);
+
+      socketService.emit('call:switch_video', { callId, enabled: true });
+
+      const offer = await pcRef.current.createOffer();
+      await pcRef.current.setLocalDescription(offer);
+      if (peer?.id) {
+        socketService.emit('call:offer', {
+          callId,
+          targetUserId: peer.id,
+          sdp: pcRef.current.localDescription,
+        });
+      }
+
+      toast.success('Switched to Video Call');
+    } catch (err) {
+      toast.warning('Camera permission is required to switch to video.');
+    }
+  }, [callId, peer, toast]);
 
   // =========================================================================
   // Media Toggle Controls
@@ -597,15 +680,12 @@ export const CallProvider = ({ children }) => {
       // Start ringing melody
       playIncomingRingtone();
 
-      // Browser Notification if supported and permitted
-      if ('Notification' in window && Notification.permission === 'granted') {
-        try {
-          new Notification(`Incoming ${incType === 'video' ? 'Video' : 'Voice'} Call`, {
-            body: `${caller.name} is calling you on PulseChat`,
-            icon: caller.avatar || '/icon.png',
-          });
-        } catch {}
-      }
+      // Trigger Web Push and In-App notification
+      notificationService.notifyIncomingCall({
+        caller,
+        callType: incType,
+        callId: incCallId,
+      });
     });
 
     // 2. Caller receives Ringing acknowledgement
@@ -691,6 +771,15 @@ export const CallProvider = ({ children }) => {
     // 7. Call Rejected
     const unsubRejected = socketService.on('call:rejected', (payload) => {
       playBusyTone();
+      if (user && peer) {
+        callHistoryService.addCall(user.id || user._id, {
+          peer,
+          direction: 'outgoing',
+          status: 'declined',
+          duration: 0,
+          type: callType,
+        });
+      }
       toast.info(`Call declined (${payload.reason || 'user busy'})`);
       setTimeout(resetCallState, 2000);
     });
@@ -704,13 +793,32 @@ export const CallProvider = ({ children }) => {
     // 9. Call Ended
     const unsubEnded = socketService.on('call:ended', (payload) => {
       playHangupTone();
-      toast.info(`Call ended${payload.duration ? ` (${payload.duration}s)` : ''}`);
+      const finalDuration = payload.duration || duration;
+      if (user && peer) {
+        callHistoryService.addCall(user.id || user._id, {
+          peer,
+          direction: callState === 'outgoing' ? 'outgoing' : 'incoming',
+          status: 'completed',
+          duration: finalDuration,
+          type: callType,
+        });
+      }
+      toast.info(`Call ended${finalDuration ? ` (${finalDuration}s)` : ''}`);
       resetCallState();
     });
 
     // 10. Recipient Unavailable / Offline
     const unsubUnavailable = socketService.on('call:unavailable', (payload) => {
       playBusyTone();
+      if (user && peer) {
+        callHistoryService.addCall(user.id || user._id, {
+          peer,
+          direction: 'outgoing',
+          status: 'unanswered',
+          duration: 0,
+          type: callType,
+        });
+      }
       toast.warning(payload.reason || 'Contact is offline');
       setTimeout(resetCallState, 2500);
     });
@@ -725,8 +833,48 @@ export const CallProvider = ({ children }) => {
     // 12. Call Timeout
     const unsubTimeout = socketService.on('call:timeout', () => {
       playBusyTone();
+      if (user && peer) {
+        callHistoryService.addCall(user.id || user._id, {
+          peer,
+          direction: 'outgoing',
+          status: 'unanswered',
+          duration: 0,
+          type: callType,
+        });
+      }
       toast.info('No answer from contact');
       setTimeout(resetCallState, 2500);
+    });
+
+    // 13. Missed Call Received
+    const unsubMissed = socketService.on('call:missed', (payload) => {
+      console.log('📲 [Socket] call:missed received:', payload);
+      const missedCaller = payload.caller || peer;
+      if (user && missedCaller) {
+        callHistoryService.addCall(user.id || user._id, {
+          peer: missedCaller,
+          direction: 'missed',
+          status: 'missed',
+          duration: 0,
+          type: payload.callType || 'voice',
+          timestamp: payload.timestamp,
+        });
+      }
+      notificationService.notifyMissedCall({
+        caller: missedCaller,
+        callType: payload.callType || 'voice',
+        timestamp: payload.timestamp,
+      });
+      toast.warning(`Missed call from ${missedCaller?.name || 'Contact'}`);
+    });
+
+    // 14. Switch to Video Call Received
+    const unsubVideoSwitched = socketService.on('call:video_switched', (payload) => {
+      if (payload.enabled) {
+        setCallType('video');
+        setIsVideoEnabled(true);
+        toast.info('Contact switched to Video Call');
+      }
     });
 
     return () => {
@@ -742,9 +890,15 @@ export const CallProvider = ({ children }) => {
       unsubUnavailable();
       unsubBusy();
       unsubTimeout();
+      unsubMissed();
+      unsubVideoSwitched();
     };
   }, [
     user,
+    peer,
+    callType,
+    callState,
+    duration,
     createPeerConnection,
     flushQueuedIceCandidates,
     playIncomingRingtone,
@@ -775,6 +929,7 @@ export const CallProvider = ({ children }) => {
     rejectCall,
     cancelCall,
     endCall,
+    switchToVideo,
     toggleMute,
     toggleVideo,
     toggleSpeaker,

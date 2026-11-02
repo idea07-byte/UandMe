@@ -230,6 +230,88 @@ class NotificationService {
   }
 
   /**
+   * Notify user of incoming call
+   */
+  notifyIncomingCall({ caller, callType = 'voice', callId }) {
+    const isAppVisible = typeof document !== 'undefined' && document.visibilityState === 'visible';
+    const callerName = caller?.name || caller?.username || 'Contact';
+    const callLabel = callType === 'video' ? 'Video Call' : 'Voice Call';
+
+    if (this.isPermissionGranted() && !isAppVisible) {
+      try {
+        const notif = new Notification(`Incoming ${callLabel}`, {
+          body: `${callerName} is calling you on PulseChat`,
+          icon: caller?.avatar || '/favicon.ico',
+          badge: '/favicon.ico',
+          tag: `uandi_call_${callId || 'incoming'}`,
+          requireInteraction: true,
+        });
+
+        notif.onclick = () => {
+          window.focus();
+          notif.close();
+        };
+      } catch (err) {
+        console.warn('[NotificationService] Incoming call notification error:', err);
+      }
+    }
+  }
+
+  /**
+   * Notify user of a missed call
+   */
+  notifyMissedCall({ caller, callType = 'voice', timestamp }) {
+    this.playNotificationSound();
+    const callerName = caller?.name || caller?.username || 'Contact';
+    const callLabel = callType === 'video' ? 'video call' : 'voice call';
+
+    const isAppVisible = typeof document !== 'undefined' && document.visibilityState === 'visible';
+
+    if (isAppVisible) {
+      const bannerDetail = {
+        id: `banner_missed_${Date.now()}`,
+        conversationId: null,
+        senderName: callerName,
+        senderAvatar: caller?.avatar || '/favicon.ico',
+        textPreview: `Missed ${callLabel}`,
+        timestamp: timestamp || new Date().toISOString(),
+        conversationName: callerName,
+        isGroup: false,
+      };
+
+      this.bannerListeners.forEach((listener) => {
+        try {
+          listener(bannerDetail);
+        } catch {}
+      });
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('uandi:in-app-notification', { detail: bannerDetail })
+        );
+      }
+    }
+
+    if (this.isPermissionGranted() && !isAppVisible) {
+      try {
+        const notif = new Notification(`Missed ${callType === 'video' ? 'Video' : 'Voice'} Call`, {
+          body: `You missed a ${callLabel} from ${callerName}`,
+          icon: caller?.avatar || '/favicon.ico',
+          badge: '/favicon.ico',
+          tag: `uandi_missed_${caller?.id || Date.now()}`,
+        });
+
+        notif.onclick = () => {
+          window.focus();
+          notif.close();
+        };
+      } catch (err) {
+        console.warn('[NotificationService] Missed call notification error:', err);
+      }
+    }
+  }
+
+  /**
    * Subscribe to in-app notification banners
    * @param {Function} callback
    * @returns {Function} Unsubscribe function

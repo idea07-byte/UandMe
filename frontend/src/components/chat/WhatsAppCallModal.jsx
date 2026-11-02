@@ -59,6 +59,7 @@ export const WhatsAppCallModal = () => {
     rejectCall,
     cancelCall,
     endCall,
+    switchToVideo,
     toggleMute,
     toggleVideo,
     toggleSpeaker,
@@ -133,7 +134,13 @@ export const WhatsAppCallModal = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            {callState === 'connected' && (
+            {substate === 'reconnecting' && (
+              <span className="text-xs px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 animate-pulse font-semibold">
+                Reconnecting...
+              </span>
+            )}
+
+            {callState === 'connected' && substate !== 'reconnecting' && (
               <span className="text-xs px-2 py-0.5 rounded-full bg-[#202C33] text-[#00A884] font-mono">
                 {connectionStatus === 'connected' ? formatDuration(duration) : 'Connecting...'}
               </span>
@@ -421,6 +428,19 @@ export const WhatsAppCallModal = () => {
             >
               {isSpeakerMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
             </button>
+
+            {/* Switch to Video Call (Voice Call Mode) */}
+            {!isVideo && (
+              <button
+                type="button"
+                onClick={switchToVideo}
+                className="w-12 h-12 rounded-full bg-[#202C33] text-[#E9EDEF] hover:bg-[#2A3942] hover:text-[#00A884] flex items-center justify-center transition-all shadow-md"
+                title="Switch to Video Call"
+                aria-label="Switch to Video Call"
+              >
+                <Video className="w-5 h-5" />
+              </button>
+            )}
 
             {/* End Call Button */}
             <button

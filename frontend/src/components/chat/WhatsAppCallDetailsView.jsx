@@ -8,6 +8,7 @@ import {
   PhoneMissed,
   Clock,
   Shield,
+  Trash2,
 } from 'lucide-react';
 import Avatar from '../common/Avatar';
 import { cn } from '../../utils/cn';
@@ -17,40 +18,61 @@ export const WhatsAppCallDetailsView = ({
   onStartVoiceCall,
   onStartVideoCall,
   onOpenChat,
+  onDeleteCall,
 }) => {
   if (!call) return null;
 
-  const isMissed = call.type === 'missed';
-  const isIncoming = call.type === 'incoming';
-  const isOutgoing = call.type === 'outgoing';
+  const isMissed = call.direction === 'missed' || call.type === 'missed';
+  const isIncoming = call.direction === 'incoming' || call.type === 'incoming';
+  const isOutgoing = call.direction === 'outgoing' || call.type === 'outgoing';
+  const isVideo = call.type === 'video' || call.isVideo;
+
+  const targetPeer = call.peer || {
+    id: call.id,
+    _id: call.id,
+    name: call.name,
+    avatar: call.avatar,
+    phone: call.phone,
+  };
 
   return (
     <div className="flex-1 flex flex-col h-full bg-[#111B21] select-none overflow-y-auto">
       {/* Top Banner */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-[#222D34] bg-[#202C33]">
         <h3 className="text-base font-bold text-[#E9EDEF]">Call Info</h3>
+        {onDeleteCall && (
+          <button
+            type="button"
+            onClick={() => onDeleteCall(call.id)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-rose-400 hover:bg-rose-950/40 transition-colors"
+            title="Delete this call log"
+          >
+            <Trash2 className="w-4 h-4" />
+            <span>Delete Log</span>
+          </button>
+        )}
       </div>
 
       {/* Main Contact Card */}
       <div className="flex flex-col items-center justify-center p-8 border-b border-[#222D34] bg-[#111B21]/50">
         <div className="relative mb-4">
           <Avatar
-            src={call.avatar}
-            name={call.name}
+            src={call.avatar || targetPeer.avatar}
+            name={call.name || targetPeer.name}
             size="xl"
             className="w-24 h-24 text-2xl shadow-xl ring-4 ring-[#202C33]"
           />
         </div>
-        <h2 className="text-xl font-bold text-[#E9EDEF]">{call.name}</h2>
+        <h2 className="text-xl font-bold text-[#E9EDEF]">{call.name || targetPeer.name}</h2>
         <p className="text-sm text-[#8696A0] mt-1">
-          {call.isVideo ? 'WhatsApp Video Call' : 'WhatsApp Voice Call'}
+          {isVideo ? 'WhatsApp Video Call' : 'WhatsApp Voice Call'}
         </p>
 
         {/* Action Buttons: Voice Call, Video Call, Message */}
         <div className="flex items-center gap-4 mt-6">
           <button
             type="button"
-            onClick={() => onStartVoiceCall?.(call)}
+            onClick={() => onStartVoiceCall?.(targetPeer)}
             className="flex flex-col items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#202C33] hover:bg-[#2A3942] text-[#00A884] transition-all group"
             title="Start voice call"
           >
@@ -62,7 +84,7 @@ export const WhatsAppCallDetailsView = ({
 
           <button
             type="button"
-            onClick={() => onStartVideoCall?.(call)}
+            onClick={() => onStartVideoCall?.(targetPeer)}
             className="flex flex-col items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#202C33] hover:bg-[#2A3942] text-[#00A884] transition-all group"
             title="Start video call"
           >
@@ -74,7 +96,7 @@ export const WhatsAppCallDetailsView = ({
 
           <button
             type="button"
-            onClick={() => onOpenChat?.(call)}
+            onClick={() => onOpenChat?.(targetPeer)}
             className="flex flex-col items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#202C33] hover:bg-[#2A3942] text-[#00A884] transition-all group"
             title="Message contact"
           >
@@ -101,7 +123,7 @@ export const WhatsAppCallDetailsView = ({
                   ? 'bg-rose-950/60 text-rose-400'
                   : isIncoming
                   ? 'bg-[#00A884]/15 text-[#00A884]'
-                  : 'bg-blue-950/60 text-blue-400'
+                  : 'bg-emerald-950/60 text-[#00A884]'
               )}
             >
               {isMissed ? (
@@ -123,9 +145,9 @@ export const WhatsAppCallDetailsView = ({
               </p>
               <div className="flex items-center gap-2 text-xs text-[#8696A0] mt-0.5">
                 <Clock className="w-3.5 h-3.5" />
-                <span>{call.time}</span>
+                <span>{call.time || call.timestamp}</span>
                 <span>•</span>
-                <span>{call.duration || (isMissed ? 'Ringing timeout' : '4m 32s')}</span>
+                <span>{call.durationFormatted || call.duration || (isMissed ? 'Ringing timeout' : '0s')}</span>
               </div>
             </div>
           </div>
