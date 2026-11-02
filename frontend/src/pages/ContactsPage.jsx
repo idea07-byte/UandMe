@@ -1,62 +1,57 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ChatSidebar from '../components/chat/ChatSidebar';
-import { ContactList, ContactDetailsPanel } from '../components/contacts';
-import Modal from '../components/common/Modal';
-import Input from '../components/common/Input';
-import Button from '../components/common/Button';
+import {
+  ContactList,
+  ContactDetailsPanel,
+  NewContactModal,
+  EditContactModal,
+  SyncContactsModal,
+} from '../components/contacts';
+import contactService from '../services/contactService';
 import chatService from '../services/chatService';
+import useAuth from '../hooks/useAuth';
 import useToast from '../hooks/useToast';
 import { useCall } from '../context/CallContext';
-import { Bug, Sparkles } from 'lucide-react';
 import { cn } from '../utils/cn';
 
 /**
- * Contacts Management Page.
- * Responsive desktop split-pane and mobile stack with alphabetical grouping,
- * live search, contact profile inspection, conversation initiation, and WebRTC calls.
+ * WhatsApp-style Contacts Management Page.
+ * - Split-pane contacts directory with alphabetical grouping and quick-jump index
+ * - Add contact by phone number with live registration check and duplicate blocking
+ * - Start 1-on-1 chat or audio/video call for registered users
+ * - Invite unregistered users via Web Share, SMS, or WhatsApp link
+ * - Edit, delete, favorite, and block contacts
+ * - Device contacts synchronization
  */
 export const ContactsPage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const toast = useToast();
+  const { startCall } = useCall();
 
-  // State
+  // Contact list state
   const [contacts, setContacts] = useState([]);
   const [selectedContact, setSelectedContact] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'online' | 'offline'
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'registered' | 'unregistered' | 'favorites'
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const { startCall } = useCall();
-
-  // New Contact Modal State
+  // Modal states
   const [isNewContactModalOpen, setIsNewContactModalOpen] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [newEmail, setNewEmail] = useState('');
-  const [newRole, setNewRole] = useState('');
-  const [newDepartment, setNewDepartment] = useState('');
+  const [editingContact, setEditingContact] = useState(null);
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
 
-  // Evaluator Simulation Controls
-  const [simulateErrorActive, setSimulateErrorActive] = useState(false);
-
-  // Load contacts
-  const fetchContacts = useCallback(async (isRetry = false) => {
+  // Fetch contacts
+  const fetchContacts = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
-    if (simulateErrorActive && !isRetry) {
-      setTimeout(() => {
-        setIsLoading(false);
-        setError('Network error: Unable to reach university LDAP directory. (Simulated Demo Error)');
-      }, 300);
-      return;
-    }
-
     try {
-      const data = await chatService.getContacts({
+      const data = await contactService.getContacts({
         search: searchQuery,
-        status: statusFilter,
+        filter: statusFilter,
       });
       setContacts(data);
 
@@ -64,16 +59,17 @@ export const ContactsPage = () => {
       if (data.length > 0 && !selectedContact) {
         setSelectedContact(data[0]);
       } else if (selectedContact) {
-        // Keep updated state for selected contact (e.g. after block/favorite)
+        // Refresh selected contact state
         const updated = data.find((c) => c.id === selectedContact.id);
         if (updated) setSelectedContact(updated);
       }
-    } catch {
-      setError('An error occurred while loading campus contacts.');
+    } catch (err) {
+      console.error('[ContactsPage] Failed to fetch contacts:', err);
+      setError('An error occurred while loading contacts.');
     } finally {
       setIsLoading(false);
     }
-  }, [searchQuery, statusFilter, simulateErrorActive, selectedContact]);
+  }, [searchQuery, statusFilter, selectedContact]);
 
   useEffect(() => {
     fetchContacts();
@@ -81,103 +77,152 @@ export const ContactsPage = () => {
 
   // Handle Starting a Conversation from Contact
   const handleStartChat = async (contact) => {
+    if (!contact) return;
     try {
-      const conv = await chatService.createOrGetConversation(contact);
-      toast.success(`Starting chat with ${contact.name}`);
+      const target = contact.contactUser
+        ? { ...contact.contactUser, name: contact.name, id: contact.contactUser.id || contact.contactUser._id }
+        : contact;
+
+      const conv = await chatService.createOrGetConversation(target);
+      toast.success(`Opening chat with ${contact.name}`);
       navigate(`/chat/${conv.id}`);
-    } catch {
+    } catch (err) {
+      console.error('[ContactsPage] handleStartChat error:', err);
       toast.error('Failed to initiate conversation.');
     }
   };
 
-  // Handle Starting Voice / Video Calls
-  const handleStartVoiceCall = (contact) => {
-    if (!contact) return;
+  // Handle Voice / Video Calls
+  const handleStartVoiceCall = (target) => {
+    if (!target) return;
     startCall({
-      recipientId: contact.id || contact._id || contact.partnerId,
-      recipientName: contact.name,
-      recipientAvatar: contact.avatar,
+      recipientId: target.id || target._id || target.partnerId,
+      recipientName: target.name,
+      recipientAvatar: target.avatar,
       callType: 'voice',
     });
   };
 
-  const handleStartVideoCall = (contact) => {
-    if (!contact) return;
+  const handleStartVideoCall = (target) => {
+    if (!target) return;
     startCall({
-      recipientId: contact.id || contact._id || contact.partnerId,
-      recipientName: contact.name,
-      recipientAvatar: contact.avatar,
+      recipientId: target.id || target._id || target.partnerId,
+      recipientName: target.name,
+      recipientAvatar: target.avatar,
       callType: 'video',
     });
   };
 
-  // Handle Toggle Favorite
-  const handleToggleFavorite = (contact) => {
-    setContacts((prev) =>
-      prev.map((c) =>
-        c.id === contact.id ? { ...c, isFavorite: !c.isFavorite } : c
-      )
-    );
-    if (selectedContact?.id === contact.id) {
-      setSelectedContact((prev) => ({ ...prev, isFavorite: !prev.isFavorite }));
+  // Toggle Favorite
+  const handleToggleFavorite = async (contact) => {
+    try {
+      const updated = await contactService.toggleFavorite(contact.id);
+      setContacts((prev) =>
+        prev.map((c) => (c.id === contact.id ? { ...c, isFavorite: updated.isFavorite } : c))
+      );
+      if (selectedContact?.id === contact.id) {
+        setSelectedContact((prev) => ({ ...prev, isFavorite: updated.isFavorite }));
+      }
+      toast.success(
+        updated.isFavorite ? `Added ${contact.name} to favorites` : `Removed ${contact.name} from favorites`
+      );
+    } catch {
+      toast.error('Failed to update favorite status');
     }
-    toast.success(
-      contact.isFavorite ? 'Removed from favorites' : 'Added to favorites'
-    );
   };
 
-  // Handle Block / Unblock Contact
+  // Toggle Block / Unblock Contact
   const handleToggleBlock = async (contact) => {
-    const isNowBlocked = !contact.isBlocked;
-    if (isNowBlocked) {
-      await chatService.blockContact(contact.id);
-    } else {
-      await chatService.unblockContact(contact.id);
-    }
-
-    setContacts((prev) =>
-      prev.map((c) =>
-        c.id === contact.id ? { ...c, isBlocked: isNowBlocked } : c
-      )
-    );
-    if (selectedContact?.id === contact.id) {
-      setSelectedContact((prev) => ({ ...prev, isBlocked: isNowBlocked }));
+    try {
+      const updated = await contactService.toggleBlock(contact.id);
+      setContacts((prev) =>
+        prev.map((c) => (c.id === contact.id ? { ...c, isBlocked: updated.isBlocked } : c))
+      );
+      if (selectedContact?.id === contact.id) {
+        setSelectedContact((prev) => ({ ...prev, isBlocked: updated.isBlocked }));
+      }
+      toast.info(
+        updated.isBlocked ? `Blocked ${contact.name}` : `Unblocked ${contact.name}`
+      );
+    } catch {
+      toast.error('Failed to update block status');
     }
   };
 
-  // Handle Add New Contact
-  const handleCreateContact = async (e) => {
-    e.preventDefault();
-    if (!newName.trim()) {
-      toast.warning('Please enter a contact name.');
+  // Handle Edit Contact
+  const handleEditContact = (contact) => {
+    setEditingContact(contact);
+  };
+
+  const handleContactUpdated = (updatedContact) => {
+    setContacts((prev) =>
+      prev.map((c) => (c.id === updatedContact.id ? updatedContact : c))
+    );
+    if (selectedContact?.id === updatedContact.id) {
+      setSelectedContact(updatedContact);
+    }
+  };
+
+  // Handle Delete Contact
+  const handleDeleteContact = async (contact) => {
+    try {
+      await contactService.deleteContact(contact.id);
+      setContacts((prev) => prev.filter((c) => c.id !== contact.id));
+      if (selectedContact?.id === contact.id) {
+        const remaining = contacts.filter((c) => c.id !== contact.id);
+        setSelectedContact(remaining.length > 0 ? remaining[0] : null);
+      }
+      toast.success(`Removed ${contact.name} from contacts.`);
+    } catch {
+      toast.error('Failed to delete contact.');
+    }
+  };
+
+  // Handle Contact Created
+  const handleContactCreated = (newContact) => {
+    setContacts((prev) => [newContact, ...prev.filter((c) => c.id !== newContact.id)]);
+    setSelectedContact(newContact);
+  };
+
+  // Handle Invite Unregistered Contact
+  const handleInviteContact = async (contact) => {
+    const inviteUrl = `${window.location.origin}/register?ref=${encodeURIComponent(user?.phone || 'uandi')}`;
+    const inviteText = `Hey ${contact.name}! I'm using uandi to chat and call with end-to-end encryption. Join me here: ${inviteUrl}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Join me on uandi',
+          text: inviteText,
+          url: inviteUrl,
+        });
+        toast.success('Invitation shared!');
+        return;
+      } catch (err) {}
+    }
+
+    // Try SMS URI
+    if (contact.phone) {
+      window.location.href = `sms:${contact.phone}?body=${encodeURIComponent(inviteText)}`;
       return;
     }
 
-    const created = await chatService.addContact({
-      name: newName.trim(),
-      email: newEmail.trim() || undefined,
-      role: newRole.trim() || 'Student Peer',
-      department: newDepartment.trim() || 'Computer Science',
-    });
-
-    setContacts((prev) => [...prev, created]);
-    setSelectedContact(created);
-    setIsNewContactModalOpen(false);
-    setNewName('');
-    setNewEmail('');
-    setNewRole('');
-    setNewDepartment('');
-    toast.success(`Added ${created.name} to your contacts directory!`);
+    // Clipboard fallback
+    try {
+      await navigator.clipboard.writeText(inviteText);
+      toast.success('Invite link copied to clipboard!');
+    } catch {
+      toast.info(`Share link: ${inviteUrl}`);
+    }
   };
 
   return (
-    <div className="flex-1 flex h-full w-full overflow-hidden bg-white dark:bg-charcoal-900 transition-colors">
+    <div className="flex-1 flex h-full w-full overflow-hidden bg-white dark:bg-[#111B21] transition-colors">
       {/* Panel 1: Slim Navigation Sidebar */}
       <ChatSidebar
         activeNav="contacts"
         onNavChange={(nav) => {
-          if (nav === 'chats') navigate('/chat');
-          if (nav === 'archived') navigate('/chat');
+          if (nav === 'chats' || nav === 'archived') navigate('/chat');
         }}
       />
 
@@ -194,17 +239,16 @@ export const ContactsPage = () => {
           selectedContactId={selectedContact?.id}
           onSelectContact={(contact) => setSelectedContact(contact)}
           onStartChat={handleStartChat}
+          onInvite={handleInviteContact}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           statusFilter={statusFilter}
           onStatusFilterChange={setStatusFilter}
           isLoading={isLoading}
           error={error}
-          onRetry={() => {
-            setSimulateErrorActive(false);
-            fetchContacts(true);
-          }}
+          onRetry={fetchContacts}
           onOpenNewContactModal={() => setIsNewContactModalOpen(true)}
+          onOpenSyncModal={() => setIsSyncModalOpen(true)}
         />
       </div>
 
@@ -216,52 +260,6 @@ export const ContactsPage = () => {
           !selectedContact ? 'hidden md:flex' : 'flex'
         )}
       >
-        {/* Interactive Evaluator Demo Banner */}
-        <div className="bg-charcoal-100/70 dark:bg-charcoal-800/40 px-4 py-2 border-b border-charcoal-200/50 dark:border-charcoal-800 flex items-center justify-between text-[11px] text-charcoal-600 dark:text-charcoal-400">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-3.5 h-3.5 text-primary-600" />
-            <span className="font-semibold text-charcoal-800 dark:text-charcoal-200">
-              Campus Directory
-            </span>
-            <span className="hidden lg:inline text-charcoal-400">• Verified contacts & real-time presence</span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setIsLoading(true);
-                setTimeout(() => setIsLoading(false), 900);
-              }}
-              className="px-2 py-0.5 rounded-lg bg-white dark:bg-charcoal-700 border border-charcoal-200 dark:border-charcoal-600 hover:text-primary-600 transition-colors font-medium"
-            >
-              Simulate Loading
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setSimulateErrorActive((prev) => !prev);
-                setError(
-                  !simulateErrorActive
-                    ? 'Simulated LDAP directory timeout error.'
-                    : null
-                );
-              }}
-              className={cn(
-                'px-2 py-0.5 rounded-lg border transition-colors font-medium flex items-center gap-1',
-                simulateErrorActive
-                  ? 'bg-rose-100 dark:bg-rose-950 text-rose-600 border-rose-300'
-                  : 'bg-white dark:bg-charcoal-700 border-charcoal-200 dark:border-charcoal-600 hover:text-rose-600'
-              )}
-            >
-              <Bug className="w-3 h-3" />
-              <span>{simulateErrorActive ? 'Clear Error' : 'Test Error State'}</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Profile Details Panel Component */}
         <ContactDetailsPanel
           contact={selectedContact}
           onClose={() => setSelectedContact(null)}
@@ -270,71 +268,37 @@ export const ContactsPage = () => {
           onStartVideoCall={handleStartVideoCall}
           onToggleFavorite={handleToggleFavorite}
           onToggleBlock={handleToggleBlock}
+          onEditContact={handleEditContact}
+          onDeleteContact={handleDeleteContact}
+          onInviteContact={handleInviteContact}
           className="flex-1"
         />
       </div>
 
-      {/* Add Contact Modal */}
-      <Modal
+      {/* New Contact Modal */}
+      <NewContactModal
         isOpen={isNewContactModalOpen}
         onClose={() => setIsNewContactModalOpen(false)}
-        title="Add Campus Contact"
-        description="Add a verified student or faculty member to your address book."
-        footer={
-          <>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setIsNewContactModalOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={handleCreateContact}
-            >
-              Save Contact
-            </Button>
-          </>
-        }
-      >
-        <form onSubmit={handleCreateContact} className="space-y-4">
-          <Input
-            label="Full Name"
-            placeholder="e.g. Bruce Wayne"
-            required
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            autoFocus
-          />
+        onContactCreated={handleContactCreated}
+        onStartChat={handleStartChat}
+      />
 
-          <Input
-            label="Institutional Email"
-            type="email"
-            placeholder="bruce.wayne@university.edu"
-            value={newEmail}
-            onChange={(e) => setNewEmail(e.target.value)}
-          />
+      {/* Edit Contact Modal */}
+      <EditContactModal
+        isOpen={Boolean(editingContact)}
+        contact={editingContact}
+        onClose={() => setEditingContact(null)}
+        onContactUpdated={handleContactUpdated}
+      />
 
-          <Input
-            label="Role / Title"
-            placeholder="e.g. AI Researcher or Senior Peer"
-            value={newRole}
-            onChange={(e) => setNewRole(e.target.value)}
-          />
-
-          <Input
-            label="Department / Faculty"
-            placeholder="e.g. Computer Science & Software Eng"
-            value={newDepartment}
-            onChange={(e) => setNewDepartment(e.target.value)}
-          />
-        </form>
-      </Modal>
+      {/* Sync Device Contacts Modal */}
+      <SyncContactsModal
+        isOpen={isSyncModalOpen}
+        onClose={() => setIsSyncModalOpen(false)}
+        onSyncCompleted={fetchContacts}
+      />
     </div>
   );
 };
 
 export default ContactsPage;
-

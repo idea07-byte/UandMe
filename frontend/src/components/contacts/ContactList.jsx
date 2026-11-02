@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { UserPlus, Users } from 'lucide-react';
+import { UserPlus, Users, Smartphone, RefreshCw } from 'lucide-react';
 import ContactCard from './ContactCard';
 import SearchInput from '../forms/SearchInput';
 import Button from '../common/Button';
@@ -21,21 +21,23 @@ const ContactSkeleton = () => (
 
 /**
  * Alphabetically Grouped Contacts List with Live Search,
- * Status Filtering, Alphabetical Index, and Loading/Error States.
+ * Phone matching, Device Sync, and Quick Actions.
  */
 export const ContactList = ({
   contacts = [],
   selectedContactId,
   onSelectContact,
   onStartChat,
+  onInvite,
   searchQuery = '',
   onSearchChange,
-  statusFilter = 'all', // 'all' | 'online' | 'offline'
+  statusFilter = 'all', // 'all' | 'registered' | 'unregistered' | 'favorites'
   onStatusFilterChange,
   isLoading = false,
   error = null,
   onRetry,
   onOpenNewContactModal,
+  onOpenSyncModal,
   className,
 }) => {
   const [selectedLetter, setSelectedLetter] = useState('ALL');
@@ -79,30 +81,44 @@ export const ContactList = ({
   return (
     <div
       className={cn(
-        'w-full md:w-88 lg:w-96 flex flex-col h-full bg-white dark:bg-charcoal-900 border-r border-charcoal-200 dark:border-charcoal-800 shrink-0 transition-colors',
+        'w-full md:w-88 lg:w-96 flex flex-col h-full bg-white dark:bg-[#111B21] border-r border-charcoal-200 dark:border-[#222D34] shrink-0 transition-colors select-none',
         className
       )}
     >
       {/* Header and Controls */}
-      <div className="p-4 space-y-3 border-b border-charcoal-100 dark:border-charcoal-800/80 shrink-0">
+      <div className="p-4 space-y-3 border-b border-charcoal-100 dark:border-[#222D34] shrink-0 bg-white dark:bg-[#111B21]">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-black text-charcoal-900 dark:text-white tracking-tight">
+            <h2 className="text-lg font-bold text-charcoal-900 dark:text-[#E9EDEF] tracking-tight">
               Contacts
             </h2>
-            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-primary-100 dark:bg-primary-950/80 text-primary-700 dark:text-primary-300">
+            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#00A884]/15 text-[#00A884]">
               {contacts.length}
             </span>
           </div>
 
-          <Button
-            size="sm"
-            variant="primary"
-            onClick={onOpenNewContactModal}
-            leftIcon={<UserPlus className="w-4 h-4" />}
-          >
-            Add Contact
-          </Button>
+          <div className="flex items-center gap-1.5">
+            {/* Sync Device Contacts Button */}
+            <button
+              type="button"
+              onClick={onOpenSyncModal}
+              className="p-2 rounded-xl text-charcoal-500 hover:text-charcoal-800 dark:text-[#8696A0] dark:hover:text-[#E9EDEF] hover:bg-charcoal-100 dark:hover:bg-[#202C33] transition-colors"
+              title="Sync device contacts"
+              aria-label="Sync device contacts"
+            >
+              <Smartphone className="w-4 h-4" />
+            </button>
+
+            {/* Add Contact Button */}
+            <button
+              type="button"
+              onClick={onOpenNewContactModal}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#00A884] hover:bg-[#02906F] text-white text-xs font-bold transition-all shadow-sm"
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              <span>New Contact</span>
+            </button>
+          </div>
         </div>
 
         {/* Search Bar */}
@@ -113,15 +129,16 @@ export const ContactList = ({
             if (selectedLetter !== 'ALL') setSelectedLetter('ALL');
           }}
           onClear={() => onSearchChange?.('')}
-          placeholder="Search by name, role, email..."
+          placeholder="Search by name or phone..."
         />
 
-        {/* Status Filter Tabs (All, Online, Offline) */}
-        <div className="flex items-center gap-1.5 pt-0.5">
+        {/* Filter Tabs */}
+        <div className="flex items-center gap-1.5 pt-0.5 overflow-x-auto no-scrollbar">
           {[
-            { id: 'all', label: 'All Contacts' },
-            { id: 'online', label: 'Online' },
-            { id: 'offline', label: 'Offline' },
+            { id: 'all', label: 'All' },
+            { id: 'registered', label: 'On uandi' },
+            { id: 'unregistered', label: 'Not on app' },
+            { id: 'favorites', label: 'Favorites' },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -131,10 +148,10 @@ export const ContactList = ({
                 if (selectedLetter !== 'ALL') setSelectedLetter('ALL');
               }}
               className={cn(
-                'px-3 py-1 text-xs font-semibold rounded-xl transition-all',
+                'px-3 py-1 text-xs font-semibold rounded-xl transition-all whitespace-nowrap',
                 statusFilter === tab.id
-                  ? 'bg-primary-600 text-white shadow-soft-sm'
-                  : 'bg-charcoal-100 dark:bg-charcoal-800 text-charcoal-600 dark:text-charcoal-400 hover:text-charcoal-900 dark:hover:text-white'
+                  ? 'bg-[#00A884] text-white shadow-soft-sm'
+                  : 'bg-charcoal-100 dark:bg-[#202C33] text-charcoal-600 dark:text-[#8696A0] hover:text-charcoal-900 dark:hover:text-white'
               )}
             >
               {tab.label}
@@ -152,7 +169,7 @@ export const ContactList = ({
                 'px-2 py-0.5 text-[10px] font-bold rounded-lg transition-all shrink-0',
                 selectedLetter === 'ALL'
                   ? 'bg-charcoal-900 dark:bg-white text-white dark:text-charcoal-900'
-                  : 'text-charcoal-500 hover:bg-charcoal-100 dark:hover:bg-charcoal-800'
+                  : 'text-charcoal-500 hover:bg-charcoal-100 dark:hover:bg-[#202C33]'
               )}
             >
               All
@@ -165,8 +182,8 @@ export const ContactList = ({
                 className={cn(
                   'w-6 h-6 flex items-center justify-center text-[10px] font-bold rounded-lg transition-all shrink-0',
                   selectedLetter === letter
-                    ? 'bg-primary-600 text-white shadow-soft-sm'
-                    : 'text-charcoal-500 hover:bg-charcoal-100 dark:hover:bg-charcoal-800'
+                    ? 'bg-[#00A884] text-white shadow-soft-sm'
+                    : 'text-charcoal-500 hover:bg-charcoal-100 dark:hover:bg-[#202C33]'
                 )}
               >
                 {letter}
@@ -178,25 +195,18 @@ export const ContactList = ({
 
       {/* Main List Content */}
       <div className="flex-1 overflow-y-auto p-2 space-y-4">
-        {/* Loading State */}
         {isLoading ? (
           <div className="space-y-2 p-2">
             <ContactSkeleton />
             <ContactSkeleton />
             <ContactSkeleton />
             <ContactSkeleton />
-            <ContactSkeleton />
           </div>
         ) : error ? (
-          // Error State
-          <div className="p-4 my-auto">
+          <div className="p-4">
             <ErrorState
-              title="Unable to load contacts"
-              message={
-                typeof error === 'string'
-                  ? error
-                  : 'We encountered an issue fetching your contacts directory. Please retry.'
-              }
+              title="Unable to Load Contacts"
+              message={error}
               onRetry={onRetry}
             />
           </div>
@@ -205,11 +215,11 @@ export const ContactList = ({
           groupedContacts.map(({ letter, items }) => (
             <div key={letter} className="space-y-1">
               {/* Group Letter Header */}
-              <div className="sticky top-0 z-10 px-3 py-1 bg-charcoal-50/95 dark:bg-charcoal-800/95 backdrop-blur-sm rounded-xl flex items-center justify-between border border-charcoal-100 dark:border-charcoal-700/60 shadow-soft-sm my-1">
-                <span className="text-xs font-black text-primary-700 dark:text-primary-300">
+              <div className="sticky top-0 z-10 px-3 py-1 bg-charcoal-50/95 dark:bg-[#202C33]/95 backdrop-blur-sm rounded-xl flex items-center justify-between border border-charcoal-100 dark:border-[#2A3942]/60 shadow-soft-sm my-1">
+                <span className="text-xs font-bold text-[#00A884]">
                   {letter}
                 </span>
-                <span className="text-[10px] font-semibold text-charcoal-400">
+                <span className="text-[10px] font-semibold text-charcoal-400 dark:text-[#8696A0]">
                   {items.length} {items.length === 1 ? 'contact' : 'contacts'}
                 </span>
               </div>
@@ -223,6 +233,7 @@ export const ContactList = ({
                     isSelected={contact.id === selectedContactId}
                     onSelect={onSelectContact}
                     onStartChat={onStartChat}
+                    onInvite={onInvite}
                   />
                 ))}
               </div>
@@ -240,8 +251,8 @@ export const ContactList = ({
                   : selectedLetter !== 'ALL'
                   ? `No contacts starting with letter "${selectedLetter}".`
                   : statusFilter !== 'all'
-                  ? `No contacts with status "${statusFilter}".`
-                  : 'Your address book is empty. Add classmates or faculty to get started.'
+                  ? `No contacts match filter "${statusFilter}".`
+                  : 'Your address book is empty. Add a new contact by phone number or sync your device contacts.'
               }
               actionLabel={
                 searchQuery || selectedLetter !== 'ALL' || statusFilter !== 'all'

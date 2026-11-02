@@ -7,7 +7,7 @@ import { API_BASE_URL } from '../utils/constants';
  */
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  timeout: 60000, // 60 seconds to accommodate Render free-tier cold-start wake-up
   headers: {
     'Content-Type': 'application/json',
   },
@@ -52,8 +52,10 @@ api.interceptors.response.use(
       } else if (error.response.data?.message) {
         errorResponse.message = error.response.data.message;
       }
+    } else if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+      errorResponse.message = 'The server is waking up from sleep mode. Please try again in a few seconds.';
     } else if (error.request) {
-      errorResponse.message = 'Unable to reach the server. Please check your network connection.';
+      errorResponse.message = 'Unable to reach the server. Please check your network connection or try again in a moment.';
     }
 
     return Promise.reject(errorResponse);

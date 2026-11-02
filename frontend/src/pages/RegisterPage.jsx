@@ -113,16 +113,16 @@ export const RegisterPage = () => {
     <div className="bg-white dark:bg-charcoal-900 border border-charcoal-200 dark:border-charcoal-800 rounded-3xl p-6 sm:p-8 shadow-soft-lg transition-colors">
       {/* Brand & Heading */}
       <div className="mb-6">
-        <div className="flex items-center gap-2.5 mb-4">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-primary-600 to-emerald-400 flex items-center justify-center text-white shadow-soft">
-            <MessageSquare className="w-5 h-5 fill-current/20" />
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-11 h-11 rounded-2xl bg-[#00A884] flex items-center justify-center text-white shadow-soft">
+            <MessageSquare className="w-6 h-6 fill-current/20" />
           </div>
           <div>
             <h1 className="text-xl font-black tracking-tight text-charcoal-900 dark:text-white leading-tight">
-              Pulse<span className="text-primary-600 dark:text-primary-400">Chat</span>
+              uand<span className="text-[#00A884]">i</span>
             </h1>
             <p className="text-[11px] font-semibold text-charcoal-400 uppercase tracking-wider">
-              Student Registration
+              End-to-End Encrypted Messaging
             </p>
           </div>
         </div>
@@ -131,7 +131,11 @@ export const RegisterPage = () => {
           Create your account
         </h2>
         <p className="text-xs sm:text-sm text-charcoal-500 dark:text-charcoal-400 mt-1">
-          Join peers and collaborators on your campus messaging platform.
+          Join your friends and peers on uandi. Or sign in directly with your{' '}
+          <Link to="/login" className="text-[#00A884] font-semibold hover:underline">
+            Mobile Phone Number
+          </Link>
+          .
         </p>
       </div>
 

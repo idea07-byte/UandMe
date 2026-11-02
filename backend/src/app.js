@@ -20,6 +20,7 @@ import authRoutes from './routes/authRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
 import messageRoutes from './routes/messageRoutes.js';
+import contactRoutes from './routes/contactRoutes.js';
 
 // 1. Fail-fast environment variable validation
 try {
@@ -167,6 +168,9 @@ app.use('/api/conversations', chatRoutes);
 
 // Messaging API Routes
 app.use('/api/messages', messageRoutes);
+
+// Contact Management API Routes
+app.use('/api/contacts', contactRoutes);
 
 // Health check endpoints for Render, Docker, uptime monitors, and frontend checks
 const handleHealthCheck = (req, res) => {

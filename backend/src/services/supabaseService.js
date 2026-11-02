@@ -2,6 +2,9 @@ import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import { supabaseAdmin } from '../config/supabase.js';
 
+// In-memory contacts cache (userId -> Map(phone -> contactObj))
+const memoryContacts = new Map();
+
 /**
  * Normalizes a database row from Supabase public.users into a standard User object
  * compatible with both Mongoose and standard frontend expectations.
@@ -46,9 +49,7 @@ export function formatUser(raw) {
       return this.toJSON();
     },
   };
-}
-
-export const supabaseService = {
+}export const supabaseService = {
   // -------------------------------------------------------------
   // USER & AUTH OPERATIONS
   // -------------------------------------------------------------
@@ -88,6 +89,58 @@ export const supabaseService = {
     if (error || !data) return null;
     return formatUser(data);
   },
+
+  async findUserByPhone(phone) {
+    if (!phone) return null;
+    const cleanPhone = phone.trim();
+
+    if (supabaseAdmin) {
+      try {
+        const { data, error } = await supabaseAdmin
+          .from('users')
+          .select('*')
+          .eq('phone', cleanPhone)
+          .maybeSingle();
+
+        if (data) return formatUser(data);
+      } catch (err) {
+        console.warn('[supabaseService] findUserByPhone query failed:', err.message);
+      }
+    }
+
+    // Check memory contacts for registered users
+    for (const userMap of memoryContacts.values()) {
+      for (const c of userMap.values()) {
+        if (c.contactUser && c.contactUser.phone === cleanPhone) {
+          return c.contactUser;
+        }
+      }
+    }
+    return null;
+  },
+
+  async findUsersByPhones(phones) {
+    if (!Array.isArray(phones) || phones.length === 0) return [];
+    const validPhones = phones.filter(Boolean);
+    if (validPhones.length === 0) return [];
+
+    if (supabaseAdmin) {
+      try {
+        const { data, error } = await supabaseAdmin
+          .from('users')
+          .select('*')
+          .in('phone', validPhones);
+
+        if (data && data.length > 0) {
+          return data.map(formatUser);
+        }
+      } catch (err) {
+        console.warn('[supabaseService] findUsersByPhones query failed:', err.message);
+      }
+    }
+    return [];
+  },
+
 
   async createUser({ name, email, password, username, avatar, role, department, about, phone }) {
     if (!supabaseAdmin) throw new Error('Supabase client unavailable');
@@ -652,6 +705,263 @@ export const supabaseService = {
       updatedAt: new Date(nowIso),
     };
   },
+
+  // -------------------------------------------------------------
+  // CONTACT BOOK OPERATIONS
+  // -------------------------------------------------------------
+
+  async listContacts(userId, { search = '', filter = 'all' } = {}) {
+    const uid = userId.toString();
+    const userMap = memoryContacts.get(uid) || new Map();
+    let contacts = Array.from(userMap.values());
+
+    // Enrich registration status against Supabase users
+    const phones = contacts.map((c) => c.phone).filter(Boolean);
+    const registeredUsers = await this.findUsersByPhones(phones);
+    const registeredPhoneMap = new Map();
+    registeredUsers.forEach((u) => {
+      if (u.phone) registeredPhoneMap.set(u.phone, u);
+    });
+
+    contacts = contacts.map((c) => {
+      const matched = registeredPhoneMap.get(c.phone) || null;
+      return {
+        ...c,
+        isRegistered: Boolean(matched),
+        contactUser: matched
+          ? {
+              id: matched.id || matched._id,
+              name: matched.name,
+              avatar: matched.avatar,
+              about: matched.about,
+              status: matched.status,
+              phone: matched.phone,
+              lastSeen: matched.lastSeen,
+            }
+          : null,
+      };
+    });
+
+    if (filter === 'favorites') contacts = contacts.filter((c) => c.isFavorite);
+    if (filter === 'blocked') contacts = contacts.filter((c) => c.isBlocked);
+    if (filter === 'registered') contacts = contacts.filter((c) => c.isRegistered);
+    if (filter === 'unregistered') contacts = contacts.filter((c) => !c.isRegistered);
+
+    if (search.trim()) {
+      const q = search.toLowerCase().trim();
+      contacts = contacts.filter(
+        (c) =>
+          c.name.toLowerCase().includes(q) ||
+          c.phone.toLowerCase().includes(q) ||
+          (c.contactUser?.name && c.contactUser.name.toLowerCase().includes(q))
+      );
+    }
+
+    return contacts.sort((a, b) => a.name.localeCompare(b.name));
+  },
+
+  async addContact(userId, { name, phone, formattedPhone }) {
+    const uid = userId.toString();
+    if (!memoryContacts.has(uid)) {
+      memoryContacts.set(uid, new Map());
+    }
+    const userMap = memoryContacts.get(uid);
+
+    if (userMap.has(phone)) {
+      const err = new Error(`A contact with phone number ${formattedPhone || phone} already exists`);
+      err.status = 409;
+      throw err;
+    }
+
+    const matchedUser = await this.findUserByPhone(phone);
+    const contactId = 'cnt_' + crypto.randomUUID().replace(/-/g, '').slice(0, 16);
+    const contact = {
+      id: contactId,
+      _id: contactId,
+      userId: uid,
+      name: name.trim(),
+      phone,
+      formattedPhone: formattedPhone || phone,
+      isRegistered: Boolean(matchedUser),
+      contactUser: matchedUser
+        ? {
+            id: matchedUser.id || matchedUser._id,
+            name: matchedUser.name,
+            avatar: matchedUser.avatar,
+            about: matchedUser.about,
+            status: matchedUser.status,
+            phone: matchedUser.phone,
+          }
+        : null,
+      isFavorite: false,
+      isBlocked: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    userMap.set(phone, contact);
+    return contact;
+  },
+
+  async updateContact(userId, contactId, { name, phone }) {
+    const uid = userId.toString();
+    const userMap = memoryContacts.get(uid);
+    if (!userMap) {
+      const err = new Error('Contact not found');
+      err.status = 404;
+      throw err;
+    }
+
+    let target = null;
+    for (const [p, c] of userMap.entries()) {
+      if (c.id === contactId) {
+        target = c;
+        break;
+      }
+    }
+
+    if (!target) {
+      const err = new Error('Contact not found');
+      err.status = 404;
+      throw err;
+    }
+
+    if (name) target.name = name.trim();
+    if (phone && phone !== target.phone) {
+      userMap.delete(target.phone);
+      target.phone = phone;
+      target.formattedPhone = phone;
+      const matched = await this.findUserByPhone(phone);
+      target.isRegistered = Boolean(matched);
+      target.contactUser = matched ? { id: matched.id, name: matched.name, avatar: matched.avatar, phone: matched.phone } : null;
+      userMap.set(phone, target);
+    }
+    target.updatedAt = new Date().toISOString();
+    return target;
+  },
+
+  async deleteContact(userId, contactId) {
+    const uid = userId.toString();
+    const userMap = memoryContacts.get(uid);
+    if (!userMap) return true;
+
+    for (const [phone, c] of userMap.entries()) {
+      if (c.id === contactId) {
+        userMap.delete(phone);
+        break;
+      }
+    }
+    return true;
+  },
+
+  async toggleFavoriteContact(userId, contactId) {
+    const uid = userId.toString();
+    const userMap = memoryContacts.get(uid);
+    if (!userMap) {
+      const err = new Error('Contact not found');
+      err.status = 404;
+      throw err;
+    }
+
+    let target = null;
+    for (const c of userMap.values()) {
+      if (c.id === contactId) {
+        target = c;
+        break;
+      }
+    }
+    if (!target) {
+      const err = new Error('Contact not found');
+      err.status = 404;
+      throw err;
+    }
+
+    target.isFavorite = !target.isFavorite;
+    return target;
+  },
+
+  async toggleBlockContact(userId, contactId) {
+    const uid = userId.toString();
+    const userMap = memoryContacts.get(uid);
+    if (!userMap) {
+      const err = new Error('Contact not found');
+      err.status = 404;
+      throw err;
+    }
+
+    let target = null;
+    for (const c of userMap.values()) {
+      if (c.id === contactId) {
+        target = c;
+        break;
+      }
+    }
+    if (!target) {
+      const err = new Error('Contact not found');
+      err.status = 404;
+      throw err;
+    }
+
+    target.isBlocked = !target.isBlocked;
+    return target;
+  },
+
+  async syncContacts(userId, rawContacts = []) {
+    const uid = userId.toString();
+    if (!memoryContacts.has(uid)) {
+      memoryContacts.set(uid, new Map());
+    }
+    const userMap = memoryContacts.get(uid);
+
+    const validItems = [];
+    const phonesToLookup = [];
+
+    rawContacts.forEach((item) => {
+      if (!item || !item.name || !item.phone) return;
+      const normalizedPhone = item.phone.trim();
+      validItems.push({ name: item.name.trim(), phone: normalizedPhone, formattedPhone: item.formattedPhone || normalizedPhone });
+      phonesToLookup.push(normalizedPhone);
+    });
+
+    const registeredUsers = await this.findUsersByPhones(phonesToLookup);
+    const regMap = new Map();
+    registeredUsers.forEach((u) => {
+      if (u.phone) regMap.set(u.phone, u);
+    });
+
+    const synced = [];
+    validItems.forEach((item) => {
+      const matched = regMap.get(item.phone) || null;
+      let existing = userMap.get(item.phone);
+      if (existing) {
+        existing.name = item.name;
+        existing.isRegistered = Boolean(matched);
+        existing.contactUser = matched ? { id: matched.id, name: matched.name, avatar: matched.avatar, phone: matched.phone } : null;
+        synced.push(existing);
+      } else {
+        const contactId = 'cnt_' + crypto.randomUUID().replace(/-/g, '').slice(0, 16);
+        const newContact = {
+          id: contactId,
+          _id: contactId,
+          userId: uid,
+          name: item.name,
+          phone: item.phone,
+          formattedPhone: item.formattedPhone,
+          isRegistered: Boolean(matched),
+          contactUser: matched ? { id: matched.id, name: matched.name, avatar: matched.avatar, phone: matched.phone } : null,
+          isFavorite: false,
+          isBlocked: false,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        userMap.set(item.phone, newContact);
+        synced.push(newContact);
+      }
+    });
+
+    return synced;
+  },
+
 };
 
 export default supabaseService;

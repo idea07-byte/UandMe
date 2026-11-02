@@ -12,6 +12,11 @@ import {
   Calendar,
   X,
   Share2,
+  Edit2,
+  Trash2,
+  UserCheck,
+  UserX,
+  Sparkles,
 } from 'lucide-react';
 import Avatar from '../common/Avatar';
 import OnlineIndicator from '../chat/OnlineIndicator';
@@ -22,7 +27,7 @@ import { cn } from '../../utils/cn';
 
 /**
  * Profile Details Panel for displaying rich contact information,
- * status, attributes, and actions (Start conversation, audio/video call, mute, favorite, block).
+ * status, attributes, and actions (Start conversation, audio/video call, mute, favorite, block, edit, delete).
  */
 export const ContactDetailsPanel = ({
   contact,
@@ -32,16 +37,20 @@ export const ContactDetailsPanel = ({
   onStartVideoCall,
   onToggleFavorite,
   onToggleBlock,
+  onEditContact,
+  onDeleteContact,
+  onInviteContact,
   className,
 }) => {
   const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const toast = useToast();
 
   if (!contact) {
     return (
       <div
         className={cn(
-          'h-full flex flex-col items-center justify-center p-8 text-center text-charcoal-400 dark:text-charcoal-500 bg-charcoal-50/50 dark:bg-charcoal-950/40',
+          'h-full flex flex-col items-center justify-center p-8 text-center text-charcoal-400 dark:text-charcoal-500 bg-charcoal-50/50 dark:bg-[#111B21]',
           className
         )}
       >
@@ -52,30 +61,33 @@ export const ContactDetailsPanel = ({
           No Contact Selected
         </h4>
         <p className="text-xs text-charcoal-500 max-w-xs mt-1">
-          Choose a classmate or faculty member from your contacts list to view profile details and start messaging.
+          Choose a contact from your contacts list to view profile details and start messaging.
         </p>
       </div>
     );
   }
 
   const {
+    id,
     name,
-    avatar,
-    status = 'offline',
-    statusMessage = 'Available on PulseChat',
-    role = 'Student',
-    department = 'Computer Science',
-    handle = '@user',
-    email = 'user@university.edu',
-    phone = '+1 (555) 234-5678',
-    joinedDate = 'Fall 2024',
+    phone,
+    formattedPhone,
+    contactUser,
+    isRegistered = true,
     isFavorite = false,
     isBlocked = false,
   } = contact;
 
+  const displayAvatar = contactUser?.avatar || contact.avatar;
+  const displayStatus = contactUser?.status || contact.status || 'offline';
+  const displayAbout = contactUser?.about || contact.about || 'Available on uandi 🚀';
+  const displayPhone = formattedPhone || phone || contact.email || 'No phone registered';
+  const displayRole = contactUser?.role || contact.role || 'Member';
+  const displayDepartment = contactUser?.department || contact.department || 'General';
+
   const handleVoiceCall = () => {
     if (onStartVoiceCall) {
-      onStartVoiceCall(contact);
+      onStartVoiceCall(contactUser || contact);
     } else {
       toast.info(`Starting voice call with ${name}...`, 'Voice Call');
     }
@@ -83,7 +95,7 @@ export const ContactDetailsPanel = ({
 
   const handleVideoCall = () => {
     if (onStartVideoCall) {
-      onStartVideoCall(contact);
+      onStartVideoCall(contactUser || contact);
     } else {
       toast.info(`Starting video call with ${name}...`, 'Video Call');
     }
@@ -92,34 +104,50 @@ export const ContactDetailsPanel = ({
   const handleConfirmBlock = () => {
     onToggleBlock?.(contact);
     setIsBlockModalOpen(false);
-    toast.warning(`${name} has been ${isBlocked ? 'unblocked' : 'blocked'}. (Frontend demo)`);
+  };
+
+  const handleConfirmDelete = () => {
+    onDeleteContact?.(contact);
+    setIsDeleteModalOpen(false);
   };
 
   const handleShare = () => {
-    navigator.clipboard?.writeText(`${name} (${handle}) - ${email}`);
-    toast.success('Contact information copied to clipboard!');
+    navigator.clipboard?.writeText(`${name} - ${displayPhone}`);
+    toast.success('Contact info copied to clipboard!');
   };
 
   return (
     <div
       className={cn(
-        'h-full flex flex-col bg-white dark:bg-charcoal-900 border-l border-charcoal-200 dark:border-charcoal-800 overflow-y-auto transition-colors',
+        'h-full flex flex-col bg-white dark:bg-[#111B21] border-l border-charcoal-200 dark:border-[#222D34] overflow-y-auto transition-colors select-none',
         className
       )}
     >
       {/* Top Header */}
-      <div className="p-4 sm:px-6 border-b border-charcoal-100 dark:border-charcoal-800/80 flex items-center justify-between shrink-0">
-        <h3 className="text-sm font-black text-charcoal-900 dark:text-white uppercase tracking-wider">
-          Profile Details
+      <div className="p-4 sm:px-6 border-b border-charcoal-100 dark:border-[#222D34] bg-charcoal-50/70 dark:bg-[#202C33] flex items-center justify-between shrink-0">
+        <h3 className="text-sm font-bold text-charcoal-900 dark:text-[#E9EDEF] uppercase tracking-wider">
+          Contact Info
         </h3>
 
         <div className="flex items-center gap-1">
+          {/* Edit Contact Button */}
+          <button
+            type="button"
+            onClick={() => onEditContact?.(contact)}
+            className="p-2 rounded-xl text-charcoal-400 hover:text-charcoal-700 dark:hover:text-[#E9EDEF] hover:bg-charcoal-100 dark:hover:bg-[#2A3942] transition-colors"
+            title="Edit contact"
+            aria-label="Edit contact"
+          >
+            <Edit2 className="w-4 h-4" />
+          </button>
+
+          {/* Share Contact Button */}
           <button
             type="button"
             onClick={handleShare}
-            className="p-2 rounded-xl text-charcoal-400 hover:text-charcoal-700 dark:hover:text-charcoal-200 hover:bg-charcoal-100 dark:hover:bg-charcoal-800 transition-colors"
-            title="Share contact"
-            aria-label="Share contact"
+            className="p-2 rounded-xl text-charcoal-400 hover:text-charcoal-700 dark:hover:text-[#E9EDEF] hover:bg-charcoal-100 dark:hover:bg-[#2A3942] transition-colors"
+            title="Share contact info"
+            aria-label="Share contact info"
           >
             <Share2 className="w-4 h-4" />
           </button>
@@ -128,7 +156,7 @@ export const ContactDetailsPanel = ({
             <button
               type="button"
               onClick={onClose}
-              className="p-2 rounded-xl text-charcoal-400 hover:text-charcoal-700 dark:hover:text-charcoal-200 hover:bg-charcoal-100 dark:hover:bg-charcoal-800 transition-colors"
+              className="p-2 rounded-xl text-charcoal-400 hover:text-charcoal-700 dark:hover:text-[#E9EDEF] hover:bg-charcoal-100 dark:hover:bg-[#2A3942] transition-colors"
               title="Close details"
               aria-label="Close details"
             >
@@ -143,15 +171,17 @@ export const ContactDetailsPanel = ({
         {/* Avatar & Presence Header */}
         <div className="text-center space-y-3">
           <div className="relative inline-block mx-auto">
-            <Avatar src={avatar} name={name} size="2xl" />
-            <div className="absolute bottom-1 right-1">
-              <OnlineIndicator status={status} size="md" pulse={status === 'online'} />
-            </div>
+            <Avatar src={displayAvatar} name={name} size="2xl" className="w-24 h-24 text-2xl shadow-xl ring-4 ring-charcoal-100 dark:ring-[#202C33]" />
+            {isRegistered && (
+              <div className="absolute bottom-1 right-1">
+                <OnlineIndicator status={displayStatus} size="md" pulse={displayStatus === 'online'} />
+              </div>
+            )}
           </div>
 
           <div>
             <div className="flex items-center justify-center gap-2">
-              <h4 className="text-xl font-black text-charcoal-900 dark:text-white leading-tight">
+              <h4 className="text-xl font-bold text-charcoal-900 dark:text-[#E9EDEF] leading-tight">
                 {name}
               </h4>
               {isFavorite && (
@@ -159,28 +189,21 @@ export const ContactDetailsPanel = ({
               )}
             </div>
 
-            <p className="text-xs font-mono text-primary-600 dark:text-primary-400 mt-0.5">
-              {handle}
+            <p className="text-xs font-mono text-charcoal-500 dark:text-[#8696A0] mt-0.5">
+              {displayPhone}
             </p>
 
             <div className="flex items-center justify-center gap-2 mt-2">
-              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-primary-100 dark:bg-primary-950/80 text-primary-700 dark:text-primary-300">
-                {role}
-              </span>
-
               <span
                 className={cn(
-                  'text-xs font-semibold px-2.5 py-0.5 rounded-full capitalize',
-                  status === 'online'
-                    ? 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300'
-                    : status === 'away'
-                    ? 'bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300'
-                    : status === 'busy'
-                    ? 'bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300'
-                    : 'bg-charcoal-100 dark:bg-charcoal-800 text-charcoal-600 dark:text-charcoal-400'
+                  'text-xs font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1',
+                  isRegistered
+                    ? 'bg-emerald-100 dark:bg-[#00A884]/20 text-emerald-800 dark:text-[#00A884]'
+                    : 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300'
                 )}
               >
-                {status}
+                {isRegistered ? <UserCheck className="w-3.5 h-3.5" /> : <UserX className="w-3.5 h-3.5" />}
+                <span>{isRegistered ? 'uandi Member' : 'Not Registered'}</span>
               </span>
 
               {isBlocked && (
@@ -193,101 +216,101 @@ export const ContactDetailsPanel = ({
         </div>
 
         {/* Primary Action Buttons */}
-        <div className="grid grid-cols-3 gap-2">
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => onStartChat?.(contact)}
-            className="flex-col h-auto py-2.5 px-2 gap-1 justify-center rounded-2xl shadow-soft"
-          >
-            <MessageSquare className="w-5 h-5" />
-            <span className="text-[11px] font-bold">Message</span>
-          </Button>
+        {isRegistered ? (
+          <div className="grid grid-cols-3 gap-2">
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => onStartChat?.(contactUser || contact)}
+              className="flex-col h-auto py-2.5 px-2 gap-1 justify-center rounded-2xl shadow-soft"
+            >
+              <MessageSquare className="w-5 h-5" />
+              <span className="text-[11px] font-bold">Message</span>
+            </Button>
 
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={handleVoiceCall}
-            className="flex-col h-auto py-2.5 px-2 gap-1 justify-center rounded-2xl"
-          >
-            <Phone className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-            <span className="text-[11px] font-bold">Call</span>
-          </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleVoiceCall}
+              className="flex-col h-auto py-2.5 px-2 gap-1 justify-center rounded-2xl"
+            >
+              <Phone className="w-5 h-5 text-[#00A884]" />
+              <span className="text-[11px] font-bold">Audio Call</span>
+            </Button>
 
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={handleVideoCall}
-            className="flex-col h-auto py-2.5 px-2 gap-1 justify-center rounded-2xl"
-          >
-            <Video className="w-5 h-5 text-primary-600 dark:text-primary-400" />
-            <span className="text-[11px] font-bold">Video</span>
-          </Button>
-        </div>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleVideoCall}
+              className="flex-col h-auto py-2.5 px-2 gap-1 justify-center rounded-2xl"
+            >
+              <Video className="w-5 h-5 text-[#00A884]" />
+              <span className="text-[11px] font-bold">Video Call</span>
+            </Button>
+          </div>
+        ) : (
+          <div className="p-4 rounded-2xl bg-amber-50 dark:bg-[#202C33] border border-amber-200 dark:border-[#2A3942] space-y-3">
+            <div className="flex items-center gap-2 text-xs font-bold text-amber-800 dark:text-amber-300">
+              <Sparkles className="w-4 h-4 text-amber-500" />
+              <span>Not registered on uandi</span>
+            </div>
+            <p className="text-xs text-charcoal-600 dark:text-[#8696A0]">
+              Invite {name} to join uandi so you can chat and call with end-to-end encryption.
+            </p>
+            <button
+              type="button"
+              onClick={() => onInviteContact?.(contact)}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#00A884] hover:bg-[#02906F] text-white text-xs font-bold transition-all shadow-md"
+            >
+              <Share2 className="w-3.5 h-3.5" />
+              <span>Invite {name} to App</span>
+            </button>
+          </div>
+        )}
 
         {/* About / Status Message Card */}
-        <div className="p-4 rounded-2xl bg-charcoal-50 dark:bg-charcoal-800/60 border border-charcoal-200/70 dark:border-charcoal-800 space-y-1">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-charcoal-400">
-            About / Status
+        <div className="p-4 rounded-2xl bg-charcoal-50 dark:bg-[#202C33] border border-charcoal-200/70 dark:border-[#2A3942] space-y-1">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-charcoal-400 dark:text-[#8696A0]">
+            About / Bio
           </span>
-          <p className="text-xs text-charcoal-800 dark:text-charcoal-200 leading-relaxed font-medium">
-            "{statusMessage}"
+          <p className="text-xs text-charcoal-800 dark:text-[#E9EDEF] leading-relaxed font-medium">
+            &quot;{displayAbout}&quot;
           </p>
         </div>
 
         {/* Contact Details List */}
         <div className="space-y-3 pt-2">
-          <h5 className="text-xs font-bold uppercase tracking-wider text-charcoal-400">
-            Contact Information
+          <h5 className="text-xs font-bold uppercase tracking-wider text-charcoal-400 dark:text-[#8696A0]">
+            Contact Details
           </h5>
 
           <div className="space-y-2 text-xs">
-            <div className="flex items-center gap-3 p-3 rounded-2xl bg-charcoal-50/70 dark:bg-charcoal-800/40 border border-charcoal-100 dark:border-charcoal-800 text-charcoal-700 dark:text-charcoal-300">
-              <Mail className="w-4 h-4 text-primary-600 shrink-0" />
+            <div className="flex items-center gap-3 p-3 rounded-2xl bg-charcoal-50/70 dark:bg-[#202C33]/60 border border-charcoal-100 dark:border-[#2A3942] text-charcoal-700 dark:text-charcoal-300">
+              <Smartphone className="w-4 h-4 text-[#00A884] shrink-0" />
               <div className="min-w-0 flex-1">
-                <span className="text-[10px] text-charcoal-400 block font-medium">University Email</span>
-                <span className="truncate font-semibold text-charcoal-900 dark:text-charcoal-100 block">
-                  {email}
+                <span className="text-[10px] text-charcoal-400 dark:text-[#8696A0] block font-medium">Phone Number</span>
+                <span className="truncate font-semibold text-charcoal-900 dark:text-[#E9EDEF] font-mono block">
+                  {displayPhone}
                 </span>
               </div>
             </div>
 
-            <div className="flex items-center gap-3 p-3 rounded-2xl bg-charcoal-50/70 dark:bg-charcoal-800/40 border border-charcoal-100 dark:border-charcoal-800 text-charcoal-700 dark:text-charcoal-300">
-              <Smartphone className="w-4 h-4 text-emerald-600 shrink-0" />
+            <div className="flex items-center gap-3 p-3 rounded-2xl bg-charcoal-50/70 dark:bg-[#202C33]/60 border border-charcoal-100 dark:border-[#2A3942] text-charcoal-700 dark:text-charcoal-300">
+              <Building className="w-4 h-4 text-sky-500 shrink-0" />
               <div className="min-w-0 flex-1">
-                <span className="text-[10px] text-charcoal-400 block font-medium">Phone Number</span>
-                <span className="truncate font-semibold text-charcoal-900 dark:text-charcoal-100 block">
-                  {phone}
+                <span className="text-[10px] text-charcoal-400 dark:text-[#8696A0] block font-medium">Department & Role</span>
+                <span className="truncate font-semibold text-charcoal-900 dark:text-[#E9EDEF] block">
+                  {displayDepartment} • {displayRole}
                 </span>
               </div>
             </div>
 
-            <div className="flex items-center gap-3 p-3 rounded-2xl bg-charcoal-50/70 dark:bg-charcoal-800/40 border border-charcoal-100 dark:border-charcoal-800 text-charcoal-700 dark:text-charcoal-300">
-              <Building className="w-4 h-4 text-sky-600 shrink-0" />
+            <div className="flex items-center gap-3 p-3 rounded-2xl bg-charcoal-50/70 dark:bg-[#202C33]/60 border border-charcoal-100 dark:border-[#2A3942] text-charcoal-700 dark:text-charcoal-300">
+              <ShieldCheck className="w-4 h-4 text-[#00A884] shrink-0" />
               <div className="min-w-0 flex-1">
-                <span className="text-[10px] text-charcoal-400 block font-medium">Academic Department</span>
-                <span className="truncate font-semibold text-charcoal-900 dark:text-charcoal-100 block">
-                  {department}
-                </span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 p-3 rounded-2xl bg-charcoal-50/70 dark:bg-charcoal-800/40 border border-charcoal-100 dark:border-charcoal-800 text-charcoal-700 dark:text-charcoal-300">
-              <Calendar className="w-4 h-4 text-purple-600 shrink-0" />
-              <div className="min-w-0 flex-1">
-                <span className="text-[10px] text-charcoal-400 block font-medium">Member Since</span>
-                <span className="truncate font-semibold text-charcoal-900 dark:text-charcoal-100 block">
-                  {joinedDate}
-                </span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 p-3 rounded-2xl bg-charcoal-50/70 dark:bg-charcoal-800/40 border border-charcoal-100 dark:border-charcoal-800 text-charcoal-700 dark:text-charcoal-300">
-              <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-              <div className="min-w-0 flex-1">
-                <span className="text-[10px] text-charcoal-400 block font-medium">Encryption Status</span>
-                <span className="text-emerald-700 dark:text-emerald-400 font-semibold block">
-                  Verified 256-bit End-to-End Encrypted
+                <span className="text-[10px] text-charcoal-400 dark:text-[#8696A0] block font-medium">Encryption & Privacy</span>
+                <span className="text-emerald-700 dark:text-[#00A884] font-semibold block">
+                  256-bit End-to-End Encrypted
                 </span>
               </div>
             </div>
@@ -295,8 +318,8 @@ export const ContactDetailsPanel = ({
         </div>
 
         {/* Contact Management Actions */}
-        <div className="space-y-2 pt-2 border-t border-charcoal-100 dark:border-charcoal-800/80">
-          <h5 className="text-xs font-bold uppercase tracking-wider text-charcoal-400 mb-2">
+        <div className="space-y-2 pt-2 border-t border-charcoal-100 dark:border-[#2A3942]">
+          <h5 className="text-xs font-bold uppercase tracking-wider text-charcoal-400 dark:text-[#8696A0] mb-2">
             Contact Actions
           </h5>
 
@@ -304,7 +327,7 @@ export const ContactDetailsPanel = ({
           <button
             type="button"
             onClick={() => onToggleFavorite?.(contact)}
-            className="w-full flex items-center justify-between p-3 rounded-2xl text-xs font-semibold text-charcoal-700 dark:text-charcoal-200 hover:bg-charcoal-100 dark:hover:bg-charcoal-800 transition-colors"
+            className="w-full flex items-center justify-between p-3 rounded-2xl text-xs font-semibold text-charcoal-700 dark:text-charcoal-200 hover:bg-charcoal-100 dark:hover:bg-[#202C33] transition-colors"
           >
             <div className="flex items-center gap-3">
               <Star
@@ -320,7 +343,7 @@ export const ContactDetailsPanel = ({
             </span>
           </button>
 
-          {/* Block / Unblock Contact (Destructive Action with confirmation) */}
+          {/* Block / Unblock Contact */}
           <button
             type="button"
             onClick={() => setIsBlockModalOpen(true)}
@@ -336,13 +359,28 @@ export const ContactDetailsPanel = ({
               <span>{isBlocked ? 'Unblock Contact' : 'Block Contact'}</span>
             </div>
             <span className="text-[11px] font-normal">
-              {isBlocked ? 'Currently Blocked' : 'Confirmation required'}
+              {isBlocked ? 'Currently Blocked' : 'Block calls & messages'}
+            </span>
+          </button>
+
+          {/* Delete Contact */}
+          <button
+            type="button"
+            onClick={() => setIsDeleteModalOpen(true)}
+            className="w-full flex items-center justify-between p-3 rounded-2xl text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <Trash2 className="w-4 h-4" />
+              <span>Delete Contact</span>
+            </div>
+            <span className="text-[11px] font-normal text-rose-500">
+              Remove from list
             </span>
           </button>
         </div>
       </div>
 
-      {/* Block Contact Confirmation Modal */}
+      {/* Block Confirmation Modal */}
       <ConfirmationModal
         isOpen={isBlockModalOpen}
         onClose={() => setIsBlockModalOpen(false)}
@@ -356,7 +394,18 @@ export const ContactDetailsPanel = ({
         confirmText={isBlocked ? 'Unblock Contact' : 'Block Contact'}
         variant={isBlocked ? 'primary' : 'danger'}
         icon={Ban}
-        note="Blocked contacts will not be able to message or place calls to your account."
+      />
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleConfirmDelete}
+        title={`Delete contact "${name}"?`}
+        message={`Are you sure you want to remove ${name} from your contacts book? This will not delete your chat history with them.`}
+        confirmText="Delete Contact"
+        variant="danger"
+        icon={Trash2}
       />
     </div>
   );

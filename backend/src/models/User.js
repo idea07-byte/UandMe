@@ -74,6 +74,16 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    phone: {
+      type: String,
+      trim: true,
+      sparse: true,
+      index: true,
+    },
+    phoneOtp: {
+      code: String,
+      expiresAt: Date,
+    },
     blockedUsers: [
       {
         type: mongoose.Schema.Types.ObjectId,

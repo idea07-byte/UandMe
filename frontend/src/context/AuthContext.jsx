@@ -53,6 +53,27 @@ export const AuthProvider = ({ children }) => {
   };
 
   /**
+   * Phone OTP Login / Registration
+   */
+  const sendPhoneOtp = async (phone, countryCode) => {
+    return await authService.sendPhoneOtp(phone, countryCode);
+  };
+
+  const verifyPhoneOtp = async ({ phone, otp, name, countryCode }) => {
+    setLoading(true);
+    try {
+      const result = await authService.verifyPhoneOtp({ phone, otp, name, countryCode });
+      if (result.user && result.token) {
+        setUser(result.user);
+        setToken(result.token);
+      }
+      return result;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
    * Real backend forgot password
    */
   const forgotPassword = async (email) => {
@@ -135,6 +156,8 @@ export const AuthProvider = ({ children }) => {
         isDevSession: authService.dev.isDevSession(),
         login,
         register,
+        sendPhoneOtp,
+        verifyPhoneOtp,
         forgotPassword,
         resetPassword,
         verifyEmail,

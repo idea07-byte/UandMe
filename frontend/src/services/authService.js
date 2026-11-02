@@ -19,6 +19,7 @@ export function normalizeUser(raw) {
     name: username,
     username,
     email: raw.email || (username.includes('@') ? username : `${username}@pulsechat.local`),
+    phone: raw.phone || null,
     avatar:
       raw.avatar ||
       'https://icon-library.com/images/anonymous-avatar-icon/anonymous-avatar-icon-25.jpg',
@@ -78,6 +79,59 @@ export const authService = {
         error.data?.message ||
         error.message ||
         'Unable to connect to authentication server. Please check your credentials.';
+      throw new Error(message);
+    }
+  },
+
+  /**
+   * Request 6-digit OTP code to be sent to a phone number.
+   * @param {string} phone
+   * @param {string} countryCode
+   * @returns {Promise<{ message: string, phone: string, expiresAt: string, isRegistered: boolean, debugOtp?: string }>}
+   */
+  async sendPhoneOtp(phone, countryCode = '+91') {
+    try {
+      const response = await api.post('/auth/phone/send-otp', {
+        phone,
+        countryCode: countryCode.replace('+', ''),
+      });
+      return response.data || response;
+    } catch (error) {
+      const message =
+        error.data?.message ||
+        error.message ||
+        'Failed to send verification code. Please check your phone number.';
+      throw new Error(message);
+    }
+  },
+
+  /**
+   * Verify phone OTP and authenticate / register user.
+   * @param {Object} data - { phone, otp, name, countryCode }
+   * @returns {Promise<{ user: Object, token: string, isNewUser: boolean }>}
+   */
+  async verifyPhoneOtp({ phone, otp, name, countryCode = '+91' }) {
+    try {
+      const response = await api.post('/auth/phone/verify-otp', {
+        phone,
+        otp,
+        name,
+        countryCode: countryCode.replace('+', ''),
+      });
+
+      const data = response.data || response;
+      if (data && data.token) {
+        const user = normalizeUser(data.user || data);
+        localStorage.setItem(TOKEN_KEY, data.token);
+        localStorage.setItem(USER_KEY, JSON.stringify(user));
+        return { user, token: data.token, isNewUser: Boolean(data.isNewUser) };
+      }
+      throw new Error('Verification response missing authentication token.');
+    } catch (error) {
+      const message =
+        error.data?.message ||
+        error.message ||
+        'Verification failed. Invalid or expired OTP code.';
       throw new Error(message);
     }
   },
