@@ -1,6 +1,7 @@
 import React from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Navbar from '../components/layout/Navbar';
+import InAppNotificationBanner from '../components/chat/InAppNotificationBanner';
 
 export const MainLayout = () => {
   const location = useLocation();
@@ -11,6 +12,9 @@ export const MainLayout = () => {
 
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-charcoal-50 dark:bg-charcoal-950 text-charcoal-900 dark:text-charcoal-100 transition-colors">
+      {/* Floating In-App Pop-Up Notification Banner */}
+      <InAppNotificationBanner />
+
       {/* Render top Navbar on profile/settings, design system, and error pages */}
       {!isImmersiveWorkspace && <Navbar />}
 

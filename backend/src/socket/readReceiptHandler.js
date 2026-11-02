@@ -1,7 +1,12 @@
 import Message from '../models/Message.js';
 import Conversation from '../models/Conversation.js';
+import mongoose from 'mongoose';
+import { supabaseService } from '../services/supabaseService.js';
+import { supabaseAdmin } from '../config/supabase.js';
 import { isValidObjectId } from '../utils/validators.js';
 import { createSocketError, createSocketSuccess } from './conversationHandler.js';
+
+const isUsingSupabase = () => mongoose.connection.readyState !== 1 && Boolean(supabaseAdmin);
 
 /**
  * Register Read Receipt Handlers.
@@ -41,6 +46,33 @@ export const registerReadReceiptHandlers = (io, socket) => {
         );
         socket.emit('socket:error', err);
         if (typeof callback === 'function') callback(err);
+        return;
+      }
+
+      if (isUsingSupabase()) {
+        const count = await supabaseService.markMessagesAsRead({ conversationId, userId: socket.userId });
+        const readPayload = {
+          conversationId: conversationId.toString(),
+          readBy: socket.userId,
+          readByUserName: socket.user.name,
+          updatedCount: count,
+          timestamp: new Date().toISOString(),
+        };
+
+        socket.to(conversationId.toString()).emit('message:read', readPayload);
+        socket.to(conversationId.toString()).emit('message_status_updated', {
+          conversationId: conversationId.toString(),
+          status: 'read',
+          userId: socket.userId,
+          timestamp: new Date().toISOString(),
+        });
+
+        const successResponse = createSocketSuccess(
+          { conversationId: conversationId.toString(), readCount: count },
+          'Read receipts updated successfully'
+        );
+        socket.emit('message:read:ack', successResponse);
+        if (typeof callback === 'function') callback(successResponse);
         return;
       }
 

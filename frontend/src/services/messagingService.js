@@ -2,13 +2,17 @@ import socketService from './socket';
 import { MESSAGE_STATUS } from '../utils/constants';
 import chatService, { normalizeMessage } from './chatService';
 import authService from './authService';
+import notificationService from './notificationService';
+
+const OFFLINE_QUEUE_KEY = 'uandi_offline_queue';
 
 /**
  * Enterprise Centralized Messaging Service.
  * - Handles networking for real-time messaging, room subscriptions, and typing states.
- * - Connects directly to Node.js/Express/MongoDB REST API and Socket.IO events.
- * - Manages optimistic updates and server confirmation reconciliation.
- * - Dispatches 'message_received', 'typing', 'stop_typing' cleanly without listener leaks.
+ * - Connects directly to REST API and Socket.IO events.
+ * - Manages optimistic updates, delivery receipts (2 ticks), read receipts (blue ticks).
+ * - Emoji reactions, message edits, deletions, and offline queuing.
+ * - Dispatches notifications via notificationService.
  */
 class MessagingService {
   constructor() {
@@ -21,10 +25,21 @@ class MessagingService {
     this.statusListeners = new Set();
     this.typingListeners = new Set();
     this.stopTypingListeners = new Set();
+    this.reactionListeners = new Set();
+    this.deleteListeners = new Set();
+    this.updateListeners = new Set();
     this.errorListeners = new Set();
 
     this.cleanupSocketBindings = null;
     this.initSocketBindings();
+
+    // Window online listener to flush offline message queue
+    if (typeof window !== 'undefined') {
+      window.addEventListener('online', () => {
+        console.log('[MessagingService] Connection restored. Flushing offline queue...');
+        this.flushOfflineQueue();
+      });
+    }
   }
 
   /**
@@ -48,7 +63,9 @@ class MessagingService {
         }
         if (this.activeConversationId) {
           socketService.emit('join_chat', this.activeConversationId);
+          socketService.emit('conversation:join', this.activeConversationId);
         }
+        this.flushOfflineQueue();
       })
     );
 
@@ -60,21 +77,72 @@ class MessagingService {
       })
     );
 
-    // 3. message_received (Backend event from Socket.IO)
-    cleanups.push(
-      socketService.on('message_received', (rawMessage) => {
-        this._handleReceiveMessage(rawMessage);
-      })
-    );
+    // 3. Inbound Messages
+    const handleInbound = (rawMessage) => {
+      this._handleReceiveMessage(rawMessage);
+    };
 
-    // Also support receive_message for compatibility
-    cleanups.push(
-      socketService.on('receive_message', (rawMessage) => {
-        this._handleReceiveMessage(rawMessage);
-      })
-    );
+    cleanups.push(socketService.on('message:received', handleInbound));
+    cleanups.push(socketService.on('message_received', handleInbound));
+    cleanups.push(socketService.on('receive_message', handleInbound));
 
-    // 4. typing
+    // 4. Delivery Receipts (2 grey ticks)
+    const handleDelivery = (payload) => {
+      this._notifyStatusUpdated({
+        messageId: payload.messageId || payload.id,
+        conversationId: payload.conversationId,
+        status: MESSAGE_STATUS.DELIVERED,
+      });
+    };
+    cleanups.push(socketService.on('message:delivered', handleDelivery));
+
+    // 5. Read Receipts (2 blue ticks)
+    const handleRead = (payload) => {
+      this._notifyStatusUpdated({
+        conversationId: payload.conversationId,
+        messageId: payload.messageId,
+        status: MESSAGE_STATUS.READ,
+      });
+    };
+    cleanups.push(socketService.on('message:read', handleRead));
+    cleanups.push(socketService.on('message_status_updated', (p) => {
+      if (p.status) {
+        this._notifyStatusUpdated(p);
+      }
+    }));
+
+    // 6. Reactions
+    const handleReaction = (payload) => {
+      this.reactionListeners.forEach((fn) => {
+        try {
+          fn(payload);
+        } catch {}
+      });
+    };
+    cleanups.push(socketService.on('message:reacted', handleReaction));
+    cleanups.push(socketService.on('reaction_updated', handleReaction));
+
+    // 7. Message Edits
+    const handleEdit = (payload) => {
+      this.updateListeners.forEach((fn) => {
+        try {
+          fn(payload);
+        } catch {}
+      });
+    };
+    cleanups.push(socketService.on('message:updated', handleEdit));
+
+    // 8. Message Deletes
+    const handleDelete = (payload) => {
+      this.deleteListeners.forEach((fn) => {
+        try {
+          fn(payload);
+        } catch {}
+      });
+    };
+    cleanups.push(socketService.on('message:deleted', handleDelete));
+
+    // 9. Typing Indicators
     cleanups.push(
       socketService.on('typing', (room) => {
         this._handleTyping({
@@ -84,19 +152,11 @@ class MessagingService {
       })
     );
 
-    // 5. stop_typing
     cleanups.push(
       socketService.on('stop_typing', (room) => {
         this._handleStopTyping({
           conversationId: room || this.activeConversationId,
         });
-      })
-    );
-
-    // 6. message_status_updated
-    cleanups.push(
-      socketService.on('message_status_updated', (payload) => {
-        this._handleMessageStatusUpdated(payload);
       })
     );
 
@@ -117,9 +177,11 @@ class MessagingService {
     }
 
     this.activeConversationId = conversationId;
+    notificationService.setActiveConversation(conversationId);
 
     if (socketService.isConnected()) {
       socketService.emit('join_chat', conversationId);
+      socketService.emit('conversation:join', conversationId);
       console.log(`[MessagingService] Joined chat room: ${conversationId}`);
     }
   }
@@ -137,17 +199,18 @@ class MessagingService {
 
     if (this.activeConversationId === idToLeave) {
       this.activeConversationId = null;
+      notificationService.setActiveConversation(null);
+    }
+
+    if (socketService.isConnected()) {
+      socketService.emit('leave_conversation', idToLeave);
+      socketService.emit('conversation:leave', idToLeave);
     }
   }
 
   /**
-   * Send a message with optimistic UI and authoritative server confirmation.
+   * Send a message with optimistic UI, delivery confirmation, and offline queuing.
    * @param {Object} params
-   * @param {string} params.conversationId
-   * @param {string} params.text
-   * @param {Array} [params.attachments]
-   * @param {Object} [params.sender]
-   * @param {string} [params.clientMessageId]
    * @returns {Object} Optimistic message representation
    */
   sendMessage({ conversationId, text, attachments = [], sender = {}, clientMessageId, replyTo = null }) {
@@ -176,10 +239,50 @@ class MessagingService {
     // Auto-stop typing on send
     this.stopTyping(conversationId);
 
+    // If offline, store in offline queue
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      this._enqueueOffline(optimisticMessage);
+      return optimisticMessage;
+    }
+
     // Send through real backend REST API and broadcast via Socket.IO
     this._dispatchMessage(optimisticMessage);
 
     return optimisticMessage;
+  }
+
+  /**
+   * Add message to offline queue in localStorage
+   * @private
+   */
+  _enqueueOffline(optimisticMessage) {
+    try {
+      const raw = localStorage.getItem(OFFLINE_QUEUE_KEY);
+      const queue = raw ? JSON.parse(raw) : [];
+      queue.push(optimisticMessage);
+      localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
+      console.log('[MessagingService] Message stored in offline queue:', optimisticMessage.clientMessageId);
+    } catch {}
+  }
+
+  /**
+   * Flush offline queue when connection is restored
+   */
+  async flushOfflineQueue() {
+    try {
+      const raw = localStorage.getItem(OFFLINE_QUEUE_KEY);
+      if (!raw) return;
+      const queue = JSON.parse(raw);
+      if (!Array.isArray(queue) || queue.length === 0) return;
+      localStorage.removeItem(OFFLINE_QUEUE_KEY);
+
+      console.log(`[MessagingService] Flushing ${queue.length} offline queued messages...`);
+      for (const msg of queue) {
+        await this._dispatchMessage(msg);
+      }
+    } catch (e) {
+      console.warn('[MessagingService] Failed to flush offline queue:', e);
+    }
   }
 
   /**
@@ -202,6 +305,7 @@ class MessagingService {
       attachments: failedMessage.attachments,
       sender: { id: failedMessage.senderId, name: failedMessage.senderName },
       clientMessageId: failedMessage.clientMessageId || failedMessage.id,
+      replyTo: failedMessage.replyTo,
     });
   }
 
@@ -218,7 +322,7 @@ class MessagingService {
         attachments: optimisticMessage.attachments,
       });
 
-      // 2. Reconcile optimistic message with canonical MongoDB _id and timestamp
+      // 2. Reconcile optimistic message with canonical ID and 1 tick ('sent')
       this._notifyStatusUpdated({
         clientMessageId: optimisticMessage.clientMessageId,
         messageId: serverMessage.id || serverMessage._id,
@@ -235,32 +339,36 @@ class MessagingService {
       if (socketService.isConnected()) {
         const rawServerPayload = {
           _id: serverMessage.id || serverMessage._id,
+          id: serverMessage.id || serverMessage._id,
+          conversationId: optimisticMessage.conversationId,
           content: serverMessage.text || optimisticMessage.text,
+          text: serverMessage.text || optimisticMessage.text,
+          attachments: optimisticMessage.attachments,
+          replyTo: optimisticMessage.replyTo,
           sender: {
             _id: optimisticMessage.senderId,
+            id: optimisticMessage.senderId,
             username: optimisticMessage.senderName,
-          },
-          chat: {
-            _id: optimisticMessage.conversationId,
-            participants: [
-              { _id: optimisticMessage.senderId },
-              // Partner will be recognized on the server
-            ],
+            name: optimisticMessage.senderName,
           },
           status: 'sent',
           createdAt: serverMessage.timestamp || new Date().toISOString(),
         };
 
-        socketService.emit('new_message', rawServerPayload);
+        socketService.emit('send_message', rawServerPayload);
+        socketService.emit('message:send', rawServerPayload);
       }
     } catch (err) {
       console.warn('[MessagingService] Message send error:', err.message);
 
-      // If mock fallback is enabled and server is offline, simulate sandbox delivery
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        this._enqueueOffline(optimisticMessage);
+        return;
+      }
+
       if (socketService.isMockMode()) {
         this._sendViaMockSandbox(optimisticMessage);
       } else {
-        // Reconcile status to 'failed' with retry support
         this._notifyStatusUpdated({
           clientMessageId: optimisticMessage.clientMessageId,
           conversationId: optimisticMessage.conversationId,
@@ -302,6 +410,37 @@ class MessagingService {
   }
 
   /**
+   * Send emoji reaction to a message
+   * @param {string} messageId
+   * @param {string} conversationId
+   * @param {string} emoji
+   */
+  reactToMessage(messageId, conversationId, emoji) {
+    if (!messageId || !emoji) return;
+
+    const currentUser = authService.getCurrentUser();
+    const payload = {
+      messageId,
+      conversationId,
+      emoji,
+      userId: currentUser?.id || currentUser?._id,
+      userName: currentUser?.name || 'You',
+    };
+
+    if (socketService.isConnected()) {
+      socketService.emit('message:react', payload);
+      socketService.emit('react_message', payload);
+    }
+
+    // Local notification
+    this.reactionListeners.forEach((fn) => {
+      try {
+        fn(payload);
+      } catch {}
+    });
+  }
+
+  /**
    * Emit typing indicator.
    * @param {string} conversationId
    */
@@ -319,7 +458,7 @@ class MessagingService {
 
     const timer = setTimeout(() => {
       this.stopTyping(targetRoom);
-    }, 2000);
+    }, 2500);
 
     this.typingDebounceTimers.set(targetRoom, timer);
   }
@@ -343,11 +482,18 @@ class MessagingService {
   }
 
   /**
-   * Mark conversation as read locally.
+   * Mark conversation as read.
+   * @param {string} conversationId
    */
   markConversationAsRead(conversationId) {
     if (!conversationId) return;
+
     chatService.markAsRead(conversationId);
+
+    if (socketService.isConnected()) {
+      socketService.emit('message:read', { conversationId });
+      socketService.emit('mark_read', { conversationId });
+    }
   }
 
   // ==========================================
@@ -357,10 +503,41 @@ class MessagingService {
   _handleReceiveMessage(payload) {
     if (!payload) return;
 
-    // Normalize incoming payload from backend Socket.IO
     const normalized = normalizeMessage(payload);
     if (!normalized || !normalized.conversationId) return;
 
+    const currentUser = authService.getCurrentUser();
+    const isFromSelf =
+      normalized.senderId === currentUser?.id ||
+      normalized.senderId === currentUser?._id;
+
+    // 1. If received from another peer, acknowledge delivery (2 ticks)
+    if (!isFromSelf && socketService.isConnected()) {
+      socketService.emit('message:delivered', {
+        messageId: normalized.id,
+        conversationId: normalized.conversationId,
+      });
+
+      // If this conversation is currently open and document is visible, also mark as read
+      if (
+        this.activeConversationId === normalized.conversationId &&
+        typeof document !== 'undefined' &&
+        document.visibilityState === 'visible'
+      ) {
+        socketService.emit('message:read', {
+          conversationId: normalized.conversationId,
+          messageId: normalized.id,
+        });
+      }
+    }
+
+    // 2. Dispatch push notification / in-app banner
+    notificationService.notifyIncomingMessage({
+      message: normalized,
+      currentUserId: currentUser?.id || currentUser?._id,
+    });
+
+    // 3. Dispatch to message subscribers
     this.messageListeners.forEach((fn) => {
       try {
         fn(normalized);
@@ -437,7 +614,7 @@ class MessagingService {
   }
 
   // ==========================================
-  // Public Event Subscription API (Leak-Free)
+  // Public Event Subscription API
   // ==========================================
 
   onReceiveMessage(callback) {
@@ -453,6 +630,30 @@ class MessagingService {
     this.statusListeners.add(callback);
     return () => {
       this.statusListeners.delete(callback);
+    };
+  }
+
+  onReactionUpdated(callback) {
+    if (typeof callback !== 'function') return () => {};
+    this.reactionListeners.add(callback);
+    return () => {
+      this.reactionListeners.delete(callback);
+    };
+  }
+
+  onMessageUpdated(callback) {
+    if (typeof callback !== 'function') return () => {};
+    this.updateListeners.add(callback);
+    return () => {
+      this.updateListeners.delete(callback);
+    };
+  }
+
+  onMessageDeleted(callback) {
+    if (typeof callback !== 'function') return () => {};
+    this.deleteListeners.add(callback);
+    return () => {
+      this.deleteListeners.delete(callback);
     };
   }
 
@@ -492,6 +693,9 @@ class MessagingService {
     this.statusListeners.clear();
     this.typingListeners.clear();
     this.stopTypingListeners.clear();
+    this.reactionListeners.clear();
+    this.updateListeners.clear();
+    this.deleteListeners.clear();
     this.errorListeners.clear();
   }
 }

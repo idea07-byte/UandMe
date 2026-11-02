@@ -35,7 +35,8 @@ export const ForwardMessageModal = ({ isOpen, onClose, message, onForwarded }) =
     try {
       const forwardedText = message.text || message.content || (message.attachment?.name ? `[File: ${message.attachment.name}]` : 'Forwarded message');
       
-      await chatService.sendMessage(selectedTarget.id, {
+      await chatService.sendMessage({
+        conversationId: selectedTarget.id,
         text: forwardedText,
         attachments: message.attachments || (message.attachment ? [message.attachment] : []),
       });

@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
-import { Plus, Search, MessageSquareDashed, Users, Archive, Star } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, Search, MessageSquareDashed, Users, Archive, Star, Bell, X } from 'lucide-react';
 import ConversationItem from './ConversationItem';
 import NewChatModal from './NewChatModal';
 import NewGroupModal from './NewGroupModal';
 import ConnectionStatusBadge from './ConnectionStatusBadge';
 import SearchInput from '../forms/SearchInput';
 import Button from '../common/Button';
+import notificationService from '../../services/notificationService';
 import { cn } from '../../utils/cn';
 
 // Loading Skeleton Placeholder for Conversation Items
@@ -46,6 +47,22 @@ export const ConversationList = ({
 }) => {
   const [isNewChatModalOpen, setIsNewChatModalOpen] = useState(false);
   const [isNewGroupModalOpen, setIsNewGroupModalOpen] = useState(false);
+  const [showNotifPrompt, setShowNotifPrompt] = useState(() => {
+    if (typeof window === 'undefined' || !('Notification' in window)) return false;
+    return Notification.permission === 'default' && localStorage.getItem('dismissed_notif_prompt') !== 'true';
+  });
+
+  const handleTurnOnNotifications = async () => {
+    const perm = await notificationService.requestPermission();
+    if (perm === 'granted') {
+      setShowNotifPrompt(false);
+    }
+  };
+
+  const handleDismissNotifPrompt = () => {
+    setShowNotifPrompt(false);
+    localStorage.setItem('dismissed_notif_prompt', 'true');
+  };
 
   const getHeaderTitle = () => {
     switch (activeView) {
@@ -164,6 +181,35 @@ export const ConversationList = ({
       {activeView === 'archived' && (
         <div className="px-4 py-2.5 bg-[#182229] border-b border-[#222D34] text-xs text-[#8696A0] flex items-center justify-between">
           <span>These chats stay archived when new messages are received. Tap to change in settings.</span>
+        </div>
+      )}
+
+      {/* WhatsApp Desktop Notification Permission Prompt Banner */}
+      {showNotifPrompt && activeView === 'chats' && (
+        <div className="bg-[#182229] border-b border-[#222D34] px-4 py-3 flex items-center justify-between text-xs text-[#E9EDEF] animate-slide-down">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-full bg-[#00A884]/20 flex items-center justify-center text-[#00A884] shrink-0">
+              <Bell className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <p className="font-semibold text-[#E9EDEF] truncate">Get notified of new messages</p>
+              <button
+                type="button"
+                onClick={handleTurnOnNotifications}
+                className="text-[#00A884] hover:underline font-bold text-[11px] block truncate text-left"
+              >
+                Turn on desktop notifications &gt;
+              </button>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleDismissNotifPrompt}
+            className="text-[#8696A0] hover:text-[#E9EDEF] p-1 shrink-0 ml-2"
+            title="Dismiss"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
 

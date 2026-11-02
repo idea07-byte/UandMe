@@ -12,3 +12,6 @@ export { ChatArea } from './ChatArea';
 export { ConnectionStatusBadge } from './ConnectionStatusBadge';
 export { NewChatModal } from './NewChatModal';
 export { WhatsAppDialpadModal } from './WhatsAppDialpadModal';
+export { InAppNotificationBanner } from './InAppNotificationBanner';
+export { ImagePreviewModal } from './ImagePreviewModal';
+export { ForwardMessageModal } from './ForwardMessageModal';

@@ -265,7 +265,42 @@ export const ChatPage = () => {
         })
       : () => {};
 
-    // 5. Network / Room authorization errors
+    // 5. Real-time reaction updates
+    const unsubReactions = messagingService.onReactionUpdated
+      ? messagingService.onReactionUpdated((payload) => {
+          setMessages((prev) =>
+            prev.map((m) => {
+              if (m.id === payload.messageId) {
+                const reactions = Array.isArray(m.reactions) ? [...m.reactions] : [];
+                reactions.push({ emoji: payload.emoji, userId: payload.userId, userName: payload.userName });
+                return { ...m, reactions };
+              }
+              return m;
+            })
+          );
+        })
+      : () => {};
+
+    // 6. Real-time message deletions
+    const unsubDeletions = messagingService.onMessageDeleted
+      ? messagingService.onMessageDeleted((payload) => {
+          setMessages((prev) =>
+            prev.map((m) => {
+              if (m.id === payload.messageId) {
+                return {
+                  ...m,
+                  text: payload.mode === 'soft' ? 'This message was deleted' : '',
+                  isDeleted: true,
+                  attachments: [],
+                };
+              }
+              return m;
+            })
+          );
+        })
+      : () => {};
+
+    // 7. Network / Room authorization errors
     const unsubError = messagingService.onError((err) => {
       toast.error(err.message || 'Messaging network error');
     });
@@ -275,6 +310,8 @@ export const ChatPage = () => {
       unsubStatus();
       unsubTyping();
       unsubStopTyping?.();
+      unsubReactions?.();
+      unsubDeletions?.();
       unsubError();
     };
   }, [activeConversationId, messagingService, user, toast]);
@@ -481,6 +518,49 @@ export const ChatPage = () => {
     } else {
       toast.success(`Unblocked ${contact.name}.`);
     }
+  };
+
+  // Handle reaction on a message
+  const handleReactMessage = (messageId, emoji) => {
+    if (!activeConversationId) return;
+    messagingService.reactToMessage(messageId, activeConversationId, emoji);
+    setMessages((prev) =>
+      prev.map((m) => {
+        if (m.id === messageId) {
+          const reactions = Array.isArray(m.reactions) ? [...m.reactions] : [];
+          reactions.push({ emoji, userId: user?.id || user?._id, userName: user?.name || 'You' });
+          return { ...m, reactions };
+        }
+        return m;
+      })
+    );
+  };
+
+  // Handle message deletion (for me vs for everyone)
+  const handleDeleteMessage = (messageId, mode = 'soft') => {
+    if (mode === 'me') {
+      setMessages((prev) => prev.filter((m) => m.id !== messageId));
+      toast.info('Message deleted for you.');
+    } else {
+      chatService.deleteMessage(messageId).catch(() => {});
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId
+            ? { ...m, text: 'This message was deleted', isDeleted: true, attachments: [] }
+            : m
+        )
+      );
+      toast.info('Message deleted for everyone.');
+    }
+  };
+
+  // Handle star message toggle
+  const handleToggleStarMessage = (message) => {
+    const updated = !message.isStarred;
+    setMessages((prev) =>
+      prev.map((m) => (m.id === message.id ? { ...m, isStarred: updated } : m))
+    );
+    toast.success(updated ? 'Message starred' : 'Message unstarred');
   };
 
   // Helper to extract actual recipient ID from conversation
@@ -697,6 +777,9 @@ export const ChatPage = () => {
               onClearChat={handleClearChat}
               onDeleteChat={handleDeleteChat}
               onToggleBlock={handleToggleBlock}
+              onReact={handleReactMessage}
+              onDeleteMessage={handleDeleteMessage}
+              onStar={handleToggleStarMessage}
               isTyping={isTyping}
               typingUserName={typingUserName}
               onStartVoiceCall={handleStartVoiceCall}

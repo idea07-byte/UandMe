@@ -1,8 +1,13 @@
+import mongoose from 'mongoose';
 import messageService from '../services/messageService.js';
 import Conversation from '../models/Conversation.js';
 import Message from '../models/Message.js';
+import { supabaseService } from '../services/supabaseService.js';
+import { supabaseAdmin } from '../config/supabase.js';
 import { isValidObjectId } from '../utils/validators.js';
 import { createSocketError, createSocketSuccess } from './conversationHandler.js';
+
+const isUsingSupabase = () => mongoose.connection.readyState !== 1 && Boolean(supabaseAdmin);
 
 /**
  * Register Real-Time Message Handlers (Send, Edit, Delete).
@@ -176,6 +181,72 @@ export const registerMessageHandlers = (io, socket) => {
     }
   };
 
+  /**
+   * Handle delivery receipts over Socket.IO
+   */
+  const handleMessageDelivered = async (payload, callback) => {
+    try {
+      if (!payload || typeof payload !== 'object') return;
+      const messageId = payload.messageId || payload.id;
+      const conversationId = payload.conversationId || payload.chatId;
+      if (!messageId) return;
+
+      if (isUsingSupabase()) {
+        await supabaseService.updateMessageStatus(messageId, 'delivered');
+      } else {
+        await Message.findByIdAndUpdate(messageId, { status: 'delivered' }).catch(() => {});
+      }
+
+      if (conversationId) {
+        io.to(conversationId.toString()).emit('message:delivered', {
+          messageId,
+          conversationId: conversationId.toString(),
+          status: 'delivered',
+          timestamp: new Date().toISOString(),
+        });
+        io.to(conversationId.toString()).emit('message_status_updated', {
+          messageId,
+          conversationId: conversationId.toString(),
+          status: 'delivered',
+          timestamp: new Date().toISOString(),
+        });
+      }
+      if (typeof callback === 'function') callback({ status: 'ok' });
+    } catch (err) {
+      console.warn('handleMessageDelivered error:', err.message);
+    }
+  };
+
+  /**
+   * Handle message reactions over Socket.IO
+   */
+  const handleReactMessage = async (payload, callback) => {
+    try {
+      if (!payload || typeof payload !== 'object') return;
+      const messageId = payload.messageId || payload.id;
+      const conversationId = payload.conversationId || payload.chatId;
+      const emoji = payload.emoji;
+      if (!messageId || !emoji) return;
+
+      const reactionPayload = {
+        messageId,
+        conversationId: conversationId ? conversationId.toString() : null,
+        emoji,
+        userId: socket.userId,
+        userName: socket.user.name,
+        timestamp: new Date().toISOString(),
+      };
+
+      if (conversationId) {
+        io.to(conversationId.toString()).emit('message:reacted', reactionPayload);
+        io.to(conversationId.toString()).emit('reaction_updated', reactionPayload);
+      }
+      if (typeof callback === 'function') callback(createSocketSuccess(reactionPayload));
+    } catch (err) {
+      console.warn('handleReactMessage error:', err.message);
+    }
+  };
+
   // -------------------------------------------------------------
   // Event Bindings & Aliases
   // -------------------------------------------------------------
@@ -186,6 +257,12 @@ export const registerMessageHandlers = (io, socket) => {
   socket.on('message:edit', handleUpdateMessage);
 
   socket.on('message:delete', handleDeleteMessage);
+
+  socket.on('message:delivered', handleMessageDelivered);
+  socket.on('mark_delivered', handleMessageDelivered);
+
+  socket.on('message:react', handleReactMessage);
+  socket.on('react_message', handleReactMessage);
 };
 
 export default registerMessageHandlers;

@@ -1,4 +1,7 @@
 import Conversation from '../models/Conversation.js';
+import mongoose from 'mongoose';
+import { supabaseService } from '../services/supabaseService.js';
+import { supabaseAdmin } from '../config/supabase.js';
 import { isValidObjectId } from '../utils/validators.js';
 
 /**
@@ -56,6 +59,35 @@ export const registerConversationHandlers = (io, socket) => {
     }
 
     try {
+      if (mongoose.connection.readyState !== 1 && supabaseAdmin) {
+        // Supabase mode
+        const conversation = await supabaseService.getConversation(conversationId);
+        if (conversation && conversation.participants) {
+          const isMember = conversation.participants.some(
+            (p) => (typeof p === 'object' ? p._id || p.id : p).toString() === socket.userId
+          );
+          if (!isMember) {
+            const err = createSocketError(
+              'Access forbidden: You are not a member of this conversation',
+              'FORBIDDEN_ROOM_ACCESS',
+              { conversationId }
+            );
+            socket.emit('socket:error', err);
+            if (typeof callback === 'function') callback(err);
+            return;
+          }
+        }
+
+        socket.join(conversationId.toString());
+        const success = createSocketSuccess(
+          { conversationId: conversationId.toString() },
+          'Successfully joined conversation room'
+        );
+        socket.emit('conversation:joined', success);
+        if (typeof callback === 'function') callback(success);
+        return;
+      }
+
       // 3. Find conversation in MongoDB
       const conversation = await Conversation.findById(conversationId);
       if (!conversation) {

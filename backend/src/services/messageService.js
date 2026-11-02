@@ -278,6 +278,10 @@ class MessageService {
       throw err;
     }
 
+    if (isUsingSupabase()) {
+      return await supabaseService.editMessage({ messageId, userId, text: trimmedText });
+    }
+
     const message = await Message.findById(messageId);
     if (!message) {
       const err = new Error('Message not found');
@@ -340,6 +344,10 @@ class MessageService {
       const err = new Error('Invalid message ID format');
       err.statusCode = 400;
       throw err;
+    }
+
+    if (isUsingSupabase()) {
+      return await supabaseService.deleteMessage({ messageId, userId, mode });
     }
 
     const message = await Message.findById(messageId);
@@ -438,6 +446,10 @@ class MessageService {
       const err = new Error('Invalid conversation ID format');
       err.statusCode = 400;
       throw err;
+    }
+
+    if (isUsingSupabase()) {
+      return await supabaseService.markMessagesAsRead({ conversationId, userId });
     }
 
     const conversation = await Conversation.findById(conversationId);

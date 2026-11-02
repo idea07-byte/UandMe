@@ -17,6 +17,7 @@ import {
 import { cn } from '../../utils/cn';
 import { EMOJI_CATEGORIES } from '../../services/mockChatData';
 import useToast from '../../hooks/useToast';
+import ImagePreviewModal from './ImagePreviewModal';
 
 const MAX_CHAR_LIMIT = 2000;
 const WARN_CHAR_THRESHOLD = 1800;
@@ -47,9 +48,16 @@ export const MessageComposer = ({
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
 
+  // Image preview modal state
+  const [previewImageFile, setPreviewImageFile] = useState(null);
+  const [previewImageUrl, setPreviewImageUrl] = useState(null);
+  const [isImagePreviewOpen, setIsImagePreviewOpen] = useState(false);
+
   const textareaRef = useRef(null);
   const emojiPickerRef = useRef(null);
   const attachmentMenuRef = useRef(null);
+  const photoInputRef = useRef(null);
+  const docInputRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const recordingStreamRef = useRef(null);
@@ -132,11 +140,76 @@ export const MessageComposer = ({
     textareaRef.current?.focus();
   };
 
-  const handleAddAttachment = (type, name, size) => {
-    setSelectedAttachments((prev) => [...prev, { type, name, size }]);
+  const handleAddAttachment = (type, name, size, url = null) => {
+    setSelectedAttachments((prev) => [...prev, { type, name, size, url }]);
     setShowAttachmentMenu(false);
     toast.info(`Attached ${name}`);
     textareaRef.current?.focus();
+  };
+
+  const handlePhotoFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setPreviewImageFile(file);
+      setPreviewImageUrl(url);
+      setIsImagePreviewOpen(true);
+      setShowAttachmentMenu(false);
+    }
+    e.target.value = '';
+  };
+
+  const handleDocFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const sizeStr =
+        file.size > 1024 * 1024
+          ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
+          : `${Math.round(file.size / 1024)} KB`;
+      const url = URL.createObjectURL(file);
+      handleAddAttachment('file', file.name, sizeStr, url);
+    }
+    e.target.value = '';
+  };
+
+  const handlePaste = (e) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf('image') !== -1) {
+        const file = items[i].getAsFile();
+        if (file) {
+          e.preventDefault();
+          const url = URL.createObjectURL(file);
+          setPreviewImageFile(file);
+          setPreviewImageUrl(url);
+          setIsImagePreviewOpen(true);
+          return;
+        }
+      }
+    }
+  };
+
+  const handleSendImagePreview = ({ file, previewUrl, caption }) => {
+    const sizeStr = file?.size
+      ? file.size > 1024 * 1024
+        ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
+        : `${Math.round(file.size / 1024)} KB`
+      : 'Photo';
+
+    onSendMessage(
+      caption,
+      [
+        {
+          type: 'image',
+          name: file?.name || 'Photo.png',
+          size: sizeStr,
+          url: previewUrl,
+        },
+      ],
+      replyingTo
+    );
+    onCancelReply?.();
   };
 
   const handleRemoveAttachment = (index) => {
@@ -305,7 +378,10 @@ export const MessageComposer = ({
         >
           <button
             type="button"
-            onClick={() => handleAddAttachment('document', 'Report_2026.pdf', '1.4 MB')}
+            onClick={() => {
+              setShowAttachmentMenu(false);
+              docInputRef.current?.click();
+            }}
             className="w-full flex items-center gap-3 p-2.5 rounded-xl text-left text-xs font-medium text-[#E9EDEF] hover:bg-[#111B21] transition-colors"
           >
             <div className="w-8 h-8 rounded-full bg-purple-600/30 text-purple-400 flex items-center justify-center">
@@ -316,7 +392,10 @@ export const MessageComposer = ({
 
           <button
             type="button"
-            onClick={() => handleAddAttachment('image', 'Campus_Photo.png', '2.8 MB')}
+            onClick={() => {
+              setShowAttachmentMenu(false);
+              photoInputRef.current?.click();
+            }}
             className="w-full flex items-center gap-3 p-2.5 rounded-xl text-left text-xs font-medium text-[#E9EDEF] hover:bg-[#111B21] transition-colors"
           >
             <div className="w-8 h-8 rounded-full bg-blue-600/30 text-blue-400 flex items-center justify-center">
@@ -499,11 +578,28 @@ export const MessageComposer = ({
                 }}
                 onBlur={() => onTypingStop?.()}
                 onKeyDown={handleKeyDown}
+                onPaste={handlePaste}
                 placeholder={placeholder}
                 disabled={disabled}
                 className="w-full text-[14.5px] bg-transparent outline-none text-[#E9EDEF] placeholder-[#8696A0] resize-none max-h-28 leading-5"
               />
             </div>
+
+            {/* Hidden File Pickers */}
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*,video/*"
+              className="hidden"
+              onChange={handlePhotoFileChange}
+            />
+            <input
+              ref={docInputRef}
+              type="file"
+              accept=".pdf,.doc,.docx,.txt,.xls,.xlsx,.zip"
+              className="hidden"
+              onChange={handleDocFileChange}
+            />
 
             {/* Dynamic Mic / Send Button */}
             {hasText || selectedAttachments.length > 0 ? (
@@ -529,6 +625,19 @@ export const MessageComposer = ({
           </>
         )}
       </div>
+
+      {/* WhatsApp Image Preview Modal */}
+      <ImagePreviewModal
+        isOpen={isImagePreviewOpen}
+        onClose={() => {
+          setIsImagePreviewOpen(false);
+          setPreviewImageFile(null);
+          setPreviewImageUrl(null);
+        }}
+        imageFile={previewImageFile}
+        imagePreviewUrl={previewImageUrl}
+        onSend={handleSendImagePreview}
+      />
     </div>
   );
 };

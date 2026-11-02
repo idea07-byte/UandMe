@@ -18,6 +18,12 @@ import {
   FileText,
   Link,
   Copy,
+  Users,
+  UserPlus,
+  UserMinus,
+  ShieldAlert,
+  LogOut,
+  MoreVertical,
 } from 'lucide-react';
 import Avatar from '../common/Avatar';
 import WhatsAppSecurityCodeModal from './WhatsAppSecurityCodeModal';
@@ -313,6 +319,81 @@ export const WhatsAppContactInfoPanel = ({
           </div>
         </div>
       </button>
+
+      {/* Group Members & Admin Controls (if Group Chat) */}
+      {target.isGroup && (
+        <div className="p-4 border-b border-[#222D34] bg-[#111B21]">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-semibold text-[#8696A0] uppercase tracking-wider">
+              {target.participants?.length || target.memberCount || 2} Participants
+            </span>
+          </div>
+
+          {/* Add member button */}
+          <button
+            type="button"
+            onClick={() => toast.info('Invite or add participants from your contacts')}
+            className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-[#202C33] text-left transition-colors mb-2 text-[#00A884]"
+          >
+            <div className="w-10 h-10 rounded-full bg-[#00A884]/20 flex items-center justify-center text-[#00A884]">
+              <UserPlus className="w-5 h-5" />
+            </div>
+            <span className="text-xs font-bold text-[#E9EDEF]">Add participant</span>
+          </button>
+
+          {/* Members list */}
+          <div className="space-y-1">
+            {(target.participants && target.participants.length > 0
+              ? target.participants
+              : [
+                  { name: 'You', role: 'admin', phone: '+91 98765 43210' },
+                  { name: target.name, role: 'member', phone: '+91 98765 43211' },
+                ]
+            ).map((member, mIdx) => {
+              const mName = typeof member === 'object' ? member.name || member.username || 'Member' : 'Member';
+              const mPhone = typeof member === 'object' ? member.phone || member.email || '' : '';
+              const isAdmin = member?.role === 'admin' || mIdx === 0;
+
+              return (
+                <div
+                  key={mIdx}
+                  className="flex items-center justify-between p-2 rounded-xl hover:bg-[#202C33] transition-colors"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <Avatar src={member?.avatar} name={mName} size="sm" />
+                    <div className="min-w-0">
+                      <span className="text-xs font-semibold text-[#E9EDEF] block truncate">
+                        {mName}
+                      </span>
+                      {mPhone && (
+                        <span className="text-[10px] text-[#8696A0] block truncate">
+                          {mPhone}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {isAdmin && (
+                    <span className="text-[10px] font-bold text-[#00A884] bg-[#00A884]/15 px-2 py-0.5 rounded-full shrink-0">
+                      Group Admin
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Exit Group Button */}
+          <button
+            type="button"
+            onClick={() => toast.info('Left group.')}
+            className="w-full mt-4 flex items-center gap-3 p-3 rounded-xl hover:bg-[#202C33] text-rose-500 text-xs font-bold transition-colors"
+          >
+            <LogOut className="w-4 h-4 text-rose-500" />
+            <span>Exit group</span>
+          </button>
+        </div>
+      )}
 
       {/* Danger Zone: Block & Report */}
       <div className="p-3 bg-[#111B21]">

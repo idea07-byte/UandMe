@@ -962,6 +962,133 @@ export function formatUser(raw) {
     return synced;
   },
 
+  // -------------------------------------------------------------
+  // MESSAGE LIFECYCLE EXTENSIONS (Edit, Delete, Read Receipts)
+  // -------------------------------------------------------------
+
+  async editMessage({ messageId, userId, text }) {
+    if (!supabaseAdmin) throw new Error('Supabase client unavailable');
+    const msgId = messageId.toString();
+    const uid = userId.toString();
+    const nowIso = new Date().toISOString();
+
+    const { data: existing, error: findErr } = await supabaseAdmin
+      .from('messages')
+      .select('*')
+      .eq('id', msgId)
+      .single();
+
+    if (findErr || !existing) {
+      const err = new Error('Message not found');
+      err.statusCode = 404;
+      throw err;
+    }
+
+    if (existing.sender_id !== uid) {
+      const err = new Error('Access forbidden: You can only edit your own messages');
+      err.statusCode = 403;
+      throw err;
+    }
+
+    const { data: updated, error: updateErr } = await supabaseAdmin
+      .from('messages')
+      .update({
+        text,
+      })
+      .eq('id', msgId)
+      .select()
+      .single();
+
+    if (updateErr) throw new Error(`Edit message failed: ${updateErr.message}`);
+
+    const senderProfile = (await this.findUserById(uid)) || { _id: uid, id: uid, name: 'User' };
+
+    return {
+      _id: updated.id,
+      id: updated.id,
+      conversationId: updated.conversation_id,
+      sender: senderProfile,
+      text: updated.text,
+      status: updated.status,
+      isEdited: true,
+      editedAt: new Date(nowIso),
+      attachments: updated.attachments || [],
+      createdAt: new Date(updated.created_at),
+      updatedAt: new Date(nowIso),
+    };
+  },
+
+  async deleteMessage({ messageId, userId, mode = 'soft' }) {
+    if (!supabaseAdmin) throw new Error('Supabase client unavailable');
+    const msgId = messageId.toString();
+    const uid = userId.toString();
+
+    const { data: existing } = await supabaseAdmin
+      .from('messages')
+      .select('*')
+      .eq('id', msgId)
+      .single();
+
+    if (!existing) {
+      const err = new Error('Message not found');
+      err.statusCode = 404;
+      throw err;
+    }
+
+    const convId = existing.conversation_id;
+
+    if (mode === 'hard') {
+      await supabaseAdmin.from('messages').delete().eq('id', msgId);
+    } else {
+      await supabaseAdmin
+        .from('messages')
+        .update({
+          text: 'This message was deleted',
+          attachments: [],
+        })
+        .eq('id', msgId);
+    }
+
+    return {
+      messageId: msgId,
+      conversationId: convId,
+      mode,
+      deletedBy: uid,
+    };
+  },
+
+  async markMessagesAsRead({ conversationId, userId }) {
+    if (!supabaseAdmin || !conversationId) return 0;
+    const convId = conversationId.toString();
+    const uid = userId.toString();
+
+    const { error, count } = await supabaseAdmin
+      .from('messages')
+      .update({ status: 'read' })
+      .eq('conversation_id', convId)
+      .neq('sender_id', uid);
+
+    if (error) {
+      console.warn('[supabaseService] markMessagesAsRead error:', error.message);
+      return 0;
+    }
+
+    await supabaseAdmin
+      .from('conversations')
+      .update({ last_message_status: 'read' })
+      .eq('id', convId);
+
+    return count || 1;
+  },
+
+  async updateMessageStatus(messageId, status) {
+    if (!supabaseAdmin || !messageId) return;
+    await supabaseAdmin
+      .from('messages')
+      .update({ status })
+      .eq('id', messageId.toString());
+  },
+
 };
 
 export default supabaseService;

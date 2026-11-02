@@ -28,6 +28,9 @@ export const ChatArea = ({
   onClearChat,
   onDeleteChat,
   onToggleBlock,
+  onReact,
+  onDeleteMessage,
+  onStar,
   isTyping = false,
   typingUserName = '',
   onStartVoiceCall,
@@ -37,7 +40,8 @@ export const ChatArea = ({
   const [activeCall, setActiveCall] = useState(null); // { type: 'voice' | 'video', contact }
   const [searchQuery, setSearchQuery] = useState('');
   const [replyingTo, setReplyingTo] = useState(null);
-  const [localMessages, setLocalMessages] = useState([]);
+  const [selectedDeleteMsgId, setSelectedDeleteMsgId] = useState(null);
+  const [isDeleteMsgModalOpen, setIsDeleteMsgModalOpen] = useState(false);
   const [isClearModalOpen, setIsClearModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);
@@ -80,11 +84,29 @@ export const ChatArea = ({
   };
 
   const handleReact = (messageId, emoji) => {
+    onReact?.(messageId, emoji);
     toast.success(`Reacted with ${emoji}`);
   };
 
-  const handleDeleteMessage = (messageId) => {
-    toast.info('Message removed');
+  const handleDeleteMessagePrompt = (messageId) => {
+    setSelectedDeleteMsgId(messageId);
+    setIsDeleteMsgModalOpen(true);
+  };
+
+  const handleDeleteForEveryone = () => {
+    if (selectedDeleteMsgId) {
+      onDeleteMessage?.(selectedDeleteMsgId, 'soft');
+      setIsDeleteMsgModalOpen(false);
+      setSelectedDeleteMsgId(null);
+    }
+  };
+
+  const handleDeleteForMe = () => {
+    if (selectedDeleteMsgId) {
+      onDeleteMessage?.(selectedDeleteMsgId, 'me');
+      setIsDeleteMsgModalOpen(false);
+      setSelectedDeleteMsgId(null);
+    }
   };
 
   const handleForwardMessage = (message) => {
@@ -92,8 +114,7 @@ export const ChatArea = ({
   };
 
   const handleToggleStar = (message) => {
-    message.isStarred = !message.isStarred;
-    toast.success(message.isStarred ? 'Message starred' : 'Message unstarred');
+    onStar?.(message);
   };
 
   const handleSend = (text, attachments) => {
@@ -162,7 +183,7 @@ export const ChatArea = ({
           onRetryMessage={onRetryMessage}
           onReply={handleReply}
           onReact={handleReact}
-          onDeleteMessage={handleDeleteMessage}
+          onDeleteMessage={handleDeleteMessagePrompt}
           onForward={handleForwardMessage}
           onStar={handleToggleStar}
         />
@@ -266,6 +287,49 @@ export const ChatArea = ({
         message={forwardingMessage}
         onForwarded={() => setForwardingMessage(null)}
       />
+
+      {/* WhatsApp Style Delete Message Options Modal */}
+      {isDeleteMsgModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in select-none">
+          <div className="w-full max-w-sm bg-[#202C33] border border-[#2A3942] rounded-3xl p-5 shadow-2xl text-[#E9EDEF] space-y-4">
+            <div>
+              <h4 className="text-base font-bold text-[#E9EDEF]">Delete message?</h4>
+              <p className="text-xs text-[#8696A0] mt-1">
+                You can delete this message for everyone or delete it just for yourself.
+              </p>
+            </div>
+
+            <div className="space-y-2 pt-2">
+              <button
+                type="button"
+                onClick={handleDeleteForEveryone}
+                className="w-full py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-md"
+              >
+                Delete for everyone
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDeleteForMe}
+                className="w-full py-2.5 px-4 rounded-xl bg-[#2A3942] hover:bg-[#374248] text-[#E9EDEF] text-xs font-bold transition-all"
+              >
+                Delete for me
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIsDeleteMsgModalOpen(false);
+                  setSelectedDeleteMsgId(null);
+                }}
+                className="w-full py-2 text-center text-xs font-semibold text-[#8696A0] hover:text-[#E9EDEF] transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
