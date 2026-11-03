@@ -32,6 +32,12 @@ export const CallProvider = ({ children }) => {
   const [isVideoEnabled, setIsVideoEnabled] = useState(true);
   const [isSpeakerMuted, setIsSpeakerMuted] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const [facingMode, setFacingMode] = useState('user'); // 'user' | 'environment'
+  const [isLowBandwidth, setIsLowBandwidth] = useState(false);
+  const [bandwidthQuality, setBandwidthQuality] = useState('good'); // 'good' | 'fair' | 'poor'
+  const [videoFitMode, setVideoFitMode] = useState('cover'); // 'cover' | 'contain'
+  const [layoutMode, setLayoutMode] = useState('spotlight'); // 'spotlight' | 'grid'
+  const [isLocalSwapped, setIsLocalSwapped] = useState(false);
   const [duration, setDuration] = useState(0);
   const [connectionStatus, setConnectionStatus] = useState('new');
 
@@ -273,6 +279,9 @@ export const CallProvider = ({ children }) => {
     setPeer(null);
     setDuration(0);
     setIsScreenSharing(false);
+    setIsLocalSwapped(false);
+    setFacingMode('user');
+    setIsLowBandwidth(false);
     setConnectionStatus('new');
   }, [cleanupMedia]);
 
@@ -659,6 +668,94 @@ export const CallProvider = ({ children }) => {
     }
   }, [isScreenSharing]);
 
+  // Flip Camera (Front vs Back)
+  const flipCamera = useCallback(async () => {
+    if (!pcRef.current || !localStreamRef.current) return;
+
+    const nextFacing = facingMode === 'user' ? 'environment' : 'user';
+    try {
+      const constraints = {
+        audio: false,
+        video: {
+          facingMode: { ideal: nextFacing },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+      };
+
+      const newStream = await navigator.mediaDevices.getUserMedia(constraints);
+      const newVideoTrack = newStream.getVideoTracks()[0];
+      if (!newVideoTrack) return;
+
+      const currentVideoTrack = localStreamRef.current.getVideoTracks()[0];
+      if (currentVideoTrack) {
+        currentVideoTrack.stop();
+        localStreamRef.current.removeTrack(currentVideoTrack);
+      }
+      localStreamRef.current.addTrack(newVideoTrack);
+
+      const senders = pcRef.current.getSenders();
+      const videoSender = senders.find((s) => s.track && s.track.kind === 'video');
+      if (videoSender) {
+        await videoSender.replaceTrack(newVideoTrack);
+      }
+
+      setFacingMode(nextFacing);
+      setLocalStream(new MediaStream(localStreamRef.current.getTracks()));
+      toast.info(`Switched to ${nextFacing === 'user' ? 'Front' : 'Back'} Camera`);
+    } catch (err) {
+      toast.warning('Unable to switch camera on this device');
+    }
+  }, [facingMode, toast]);
+
+  // Toggle Video Fit Mode (Cover vs Contain)
+  const toggleVideoFit = useCallback(() => {
+    setVideoFitMode((prev) => (prev === 'cover' ? 'contain' : 'cover'));
+  }, []);
+
+  // Toggle Layout Mode (Spotlight vs Grid)
+  const toggleLayoutMode = useCallback(() => {
+    setLayoutMode((prev) => (prev === 'spotlight' ? 'grid' : 'spotlight'));
+  }, []);
+
+  // Swap Local and Remote video streams
+  const toggleSwapVideo = useCallback(() => {
+    setIsLocalSwapped((prev) => !prev);
+  }, []);
+
+  // Low-Bandwidth Monitoring during Connected Calls
+  useEffect(() => {
+    if (callState !== 'connected' || !pcRef.current) return;
+
+    const statsInterval = setInterval(async () => {
+      try {
+        if (!pcRef.current) return;
+        const stats = await pcRef.current.getStats();
+        let currentPacketLoss = 0;
+        stats.forEach((report) => {
+          if (report.type === 'inbound-rtp' && report.kind === 'video') {
+            const packetsLost = report.packetsLost || 0;
+            const packetsReceived = report.packetsReceived || 1;
+            currentPacketLoss = packetsLost / (packetsLost + packetsReceived);
+          }
+        });
+
+        if (currentPacketLoss > 0.15) {
+          setIsLowBandwidth(true);
+          setBandwidthQuality('poor');
+        } else if (currentPacketLoss > 0.05) {
+          setIsLowBandwidth(false);
+          setBandwidthQuality('fair');
+        } else {
+          setIsLowBandwidth(false);
+          setBandwidthQuality('good');
+        }
+      } catch {}
+    }, 4000);
+
+    return () => clearInterval(statsInterval);
+  }, [callState]);
+
   // =========================================================================
   // Socket Signaling Event Listeners (Global App-Wide)
   // =========================================================================
@@ -922,6 +1019,12 @@ export const CallProvider = ({ children }) => {
     isScreenSharing,
     duration,
     connectionStatus,
+    facingMode,
+    isLowBandwidth,
+    bandwidthQuality,
+    videoFitMode,
+    layoutMode,
+    isLocalSwapped,
     localStream,
     remoteStream,
     startCall,
@@ -930,6 +1033,10 @@ export const CallProvider = ({ children }) => {
     cancelCall,
     endCall,
     switchToVideo,
+    flipCamera,
+    toggleVideoFit,
+    toggleLayoutMode,
+    toggleSwapVideo,
     toggleMute,
     toggleVideo,
     toggleSpeaker,
