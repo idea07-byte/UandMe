@@ -51,7 +51,15 @@ export const NewContactModal = ({
 
   // Debounced check if phone number is registered
   useEffect(() => {
-    if (!phone || phone.trim().length < 5) {
+    const digits = phone.replace(/\D/g, '');
+    if (!digits || digits.length < 5) {
+      setPhoneCheckResult(null);
+      setPhoneError(null);
+      return;
+    }
+
+    // Do not show premature validation errors while the user is still typing an incomplete number
+    if (digits.length < 10 && !phone.trim().startsWith('+')) {
       setPhoneCheckResult(null);
       setPhoneError(null);
       return;
@@ -83,7 +91,7 @@ export const NewContactModal = ({
       } finally {
         setIsCheckingPhone(false);
       }
-    }, 400);
+    }, 300);
 
     return () => clearTimeout(timer);
   }, [phone, countryCode, user?.phone]);
@@ -97,9 +105,15 @@ export const NewContactModal = ({
       return;
     }
 
+    const digits = phone.replace(/\D/g, '');
+    if (!digits || digits.length < 7) {
+      setPhoneError('Please enter a valid phone number');
+      return;
+    }
+
     const normalized = normalizePhone(phone, countryCode);
     if (!normalized.isValid) {
-      setPhoneError(normalized.error);
+      setPhoneError(normalized.error || 'Please enter a valid phone number');
       return;
     }
 
@@ -288,9 +302,15 @@ export const NewContactModal = ({
               label="Phone Number"
               required
               countryCode={countryCode}
-              onCountryChange={(dial) => setCountryCode(dial)}
+              onCountryChange={(dial) => {
+                setCountryCode(dial);
+                if (phoneError) setPhoneError(null);
+              }}
               value={phone}
-              onChange={(val) => setPhone(val)}
+              onChange={(val) => {
+                setPhone(val);
+                if (phoneError) setPhoneError(null);
+              }}
               error={phoneError}
             />
 

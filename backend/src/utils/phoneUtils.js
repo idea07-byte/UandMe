@@ -74,7 +74,7 @@ export function normalizePhone(rawNumber, defaultCountry = 'IN') {
     return { isValid: false, e164: '', formatted: '', country: 'IN', error: 'Phone number is required' };
   }
 
-  const cleaned = rawNumber.trim();
+  const cleaned = rawNumber.replace(/\u00A0/g, ' ').trim();
   const digitsOnly = cleaned.replace(/\D/g, '');
 
   if (!digitsOnly || digitsOnly.length < 5) {
@@ -83,6 +83,16 @@ export function normalizePhone(rawNumber, defaultCountry = 'IN') {
 
   const isoCountry = getCountryIso(defaultCountry);
   const dialCode = getDialCode(defaultCountry);
+  const cleanDial = dialCode.replace('+', '');
+
+  // Strip accidental leading zero (e.g. 06379756227 -> 6379756227)
+  // or country code entered without plus (e.g. 916379756227 -> 6379756227)
+  let effectiveDigits = digitsOnly;
+  if (digitsOnly.length === 11 && digitsOnly.startsWith('0')) {
+    effectiveDigits = digitsOnly.slice(1);
+  } else if (cleanDial && digitsOnly.startsWith(cleanDial) && digitsOnly.length === cleanDial.length + 10) {
+    effectiveDigits = digitsOnly.slice(cleanDial.length);
+  }
 
   // 1. If user typed full number starting with +
   if (cleaned.startsWith('+')) {
@@ -104,13 +114,14 @@ export function normalizePhone(rawNumber, defaultCountry = 'IN') {
         isValid: true,
         e164: `+${digitsOnly}`,
         formatted: `+${digitsOnly}`,
+        national: digitsOnly,
         country: isoCountry,
       };
     }
   }
 
-  // 2. Try prepending dial code (+91...)
-  const withDialCode = `${dialCode}${digitsOnly}`;
+  // 2. Try prepending dial code (+91...) with effective digits
+  const withDialCode = `${dialCode}${effectiveDigits}`;
   try {
     const phoneNumberWithDial = parsePhoneNumberFromString(withDialCode);
     if (phoneNumberWithDial && phoneNumberWithDial.isValid()) {
@@ -126,7 +137,7 @@ export function normalizePhone(rawNumber, defaultCountry = 'IN') {
 
   // 3. Try parsing with ISO country context
   try {
-    const phoneNumberIso = parsePhoneNumberFromString(cleaned, isoCountry);
+    const phoneNumberIso = parsePhoneNumberFromString(effectiveDigits, isoCountry);
     if (phoneNumberIso && phoneNumberIso.isValid()) {
       return {
         isValid: true,
@@ -138,17 +149,17 @@ export function normalizePhone(rawNumber, defaultCountry = 'IN') {
     }
   } catch {}
 
-  // 4. Graceful fallback for standard 10-digit mobile numbers (e.g. India 6379756227, US, etc.)
-  if (digitsOnly.length === 10) {
+  // 4. Standard 10-digit mobile numbers (e.g. India 6379756227, US, etc.)
+  if (effectiveDigits.length === 10) {
     const formatted = isoCountry === 'IN'
-      ? `${dialCode} ${digitsOnly.slice(0, 5)} ${digitsOnly.slice(5)}`
-      : `${dialCode} (${digitsOnly.slice(0, 3)}) ${digitsOnly.slice(3, 6)}-${digitsOnly.slice(6)}`;
+      ? `${dialCode} ${effectiveDigits.slice(0, 5)} ${effectiveDigits.slice(5)}`
+      : `${dialCode} (${effectiveDigits.slice(0, 3)}) ${effectiveDigits.slice(3, 6)}-${effectiveDigits.slice(6)}`;
 
     return {
       isValid: true,
-      e164: `${dialCode}${digitsOnly}`,
+      e164: `${dialCode}${effectiveDigits}`,
       formatted,
-      national: digitsOnly,
+      national: effectiveDigits,
       country: isoCountry,
     };
   }
